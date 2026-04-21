@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from backend.routers import health
+from routers import health
 
 app = FastAPI(title="Gas Town Meal Planner API")
 
