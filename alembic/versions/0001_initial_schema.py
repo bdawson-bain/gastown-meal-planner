@@ -37,7 +37,7 @@ def upgrade() -> None:
         sa.Column("household_size", sa.Integer(), nullable=True),
         sa.Column("dietary_prefs", postgresql.JSONB(astext_type=sa.Text()), nullable=True),
         sa.Column("allergies", postgresql.JSONB(astext_type=sa.Text()), nullable=True),
-        sa.Column("budget", sa.Float(), nullable=True),
+        sa.Column("budget", sa.Numeric(10, 2), nullable=True),
         sa.Column("cook_time_minutes", sa.Integer(), nullable=True),
         sa.Column("openai_api_key", sa.String(), nullable=True),
         sa.ForeignKeyConstraint(["user_id"], ["users.id"], ondelete="CASCADE"),

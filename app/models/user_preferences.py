@@ -1,7 +1,8 @@
 import uuid
+from decimal import Decimal
 from typing import TYPE_CHECKING, Any, Optional
 
-from sqlalchemy import ForeignKey, Integer
+from sqlalchemy import ForeignKey, Integer, Numeric
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -24,7 +25,7 @@ class UserPreferences(Base):
     dietary_prefs: Mapped[Optional[Any]] = mapped_column(JSONB, nullable=True)
     allergies: Mapped[Optional[Any]] = mapped_column(JSONB, nullable=True)
     # Weekly grocery budget in USD
-    budget: Mapped[Optional[float]] = mapped_column(nullable=True)
+    budget: Mapped[Optional[Decimal]] = mapped_column(Numeric(10, 2), nullable=True)
     cook_time_minutes: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     # Stored encrypted; requires ENCRYPTION_KEY env var at runtime
     openai_api_key: Mapped[Optional[str]] = mapped_column(
