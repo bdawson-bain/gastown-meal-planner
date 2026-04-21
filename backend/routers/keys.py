@@ -17,12 +17,12 @@ class ValidateKeyResponse(BaseModel):
 @router.post("/validate-key", response_model=ValidateKeyResponse)
 def validate_key(body: ValidateKeyRequest) -> ValidateKeyResponse:
     try:
-        client = OpenAI(api_key=body.api_key)
+        client = OpenAI(api_key=body.api_key, timeout=10.0)
         client.models.list()
         return ValidateKeyResponse(valid=True, error=None)
     except AuthenticationError:
         return ValidateKeyResponse(valid=False, error="Invalid API key")
     except PermissionDeniedError:
         return ValidateKeyResponse(valid=False, error="API key lacks required permissions")
-    except Exception as e:
-        return ValidateKeyResponse(valid=False, error=str(e))
+    except Exception:
+        return ValidateKeyResponse(valid=False, error="Validation request failed")
