@@ -158,7 +158,7 @@ function MacroRing({ label, value, target, color, delay = 0 }) {
           />
         </svg>
         <div className="absolute inset-0 flex items-center justify-center">
-          <span className="font-display text-[26px] leading-none text-ink">{display}</span>
+          <span className="font-display text-[32px] leading-none text-ink">{display}</span>
         </div>
       </div>
       <p className="font-sans text-[11px] font-medium uppercase tracking-[0.12em] text-ink-subtle">
@@ -368,6 +368,8 @@ export default function Dashboard() {
   const mealCount = activePlanFull?.meals?.length ?? 0
   const historyPlans = plans.slice(0, 4)
   const collageMeals = activePlanFull?.meals?.slice(0, 3) ?? []
+  // Avg cal is only available for the loaded active plan; others show '—'
+  const avgCalById = activePlanFull ? { [activePlanFull.id]: avgCal } : {}
 
   // Calorie status subtitle
   let calorieLine = 'Generate your first plan to get started.'
@@ -561,20 +563,32 @@ export default function Dashboard() {
                   }`}>
                     {formatWeekRange(plan.week_start)}
                   </p>
-                  <div className="mt-3">
+                  {avgCalById[plan.id] != null && (
+                    <p className={`font-sans text-[10px] mt-0.5 ${
+                      plan.is_active ? 'text-cream opacity-60' : 'text-ink-subtle'
+                    }`}>
+                      avg {avgCalById[plan.id].toLocaleString()} cal/day
+                    </p>
+                  )}
+                  <div className="mt-3 flex flex-col gap-1.5">
                     {plan.is_active ? (
-                      <span className="font-sans text-[10px] font-semibold uppercase tracking-wide bg-amber text-ink px-2 py-0.5 rounded-full">
+                      <span className="font-sans text-[10px] font-semibold uppercase tracking-wide bg-amber text-ink px-2 py-0.5 rounded-full self-start">
                         Active
                       </span>
                     ) : (
-                      <button
-                        type="button"
-                        onClick={() => handleSetActive(plan.id)}
-                        disabled={!!activatingId}
-                        className="font-sans text-[11px] font-medium text-forest-muted hover:text-forest transition-colors disabled:opacity-50"
-                      >
-                        {activatingId === plan.id ? 'Setting…' : 'Set active'}
-                      </button>
+                      <>
+                        <span className="font-sans text-[10px] font-semibold uppercase tracking-wide border border-ink-subtle/30 text-ink-subtle px-2 py-0.5 rounded-full self-start">
+                          Archived
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => handleSetActive(plan.id)}
+                          disabled={!!activatingId}
+                          className="font-sans text-[11px] font-medium text-forest-muted hover:text-forest transition-colors disabled:opacity-50 self-start"
+                        >
+                          {activatingId === plan.id ? 'Setting…' : 'Set active'}
+                        </button>
+                      </>
                     )}
                   </div>
                 </div>
