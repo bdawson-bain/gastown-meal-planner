@@ -30,7 +30,7 @@ export default function Login() {
       const data = await res.json()
       localStorage.setItem('user_id', data.user_id)
       localStorage.setItem('email', data.email)
-      navigate('/plan')
+      navigate('/')
     } catch (err) {
       setError(err.message)
     } finally {

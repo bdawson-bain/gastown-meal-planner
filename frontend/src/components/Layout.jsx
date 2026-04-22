@@ -2,8 +2,10 @@ import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 
 const guestLinks = [
   { to: '/onboarding', label: 'Get Started' },
+  { to: '/login', label: 'Sign in' },
 ]
 const authLinks = [
+  { to: '/', label: 'Dashboard' },
   { to: '/plans', label: 'My Plans' },
   { to: '/plan', label: 'Meal Plan' },
   { to: '/grocery-list', label: 'Grocery List' },

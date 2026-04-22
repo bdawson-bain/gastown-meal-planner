@@ -1,7 +1,7 @@
 import { Routes, Route } from 'react-router-dom'
 import Layout from './components/Layout'
 import ProtectedRoute from './components/ProtectedRoute'
-import Home from './pages/Home'
+import Dashboard from './pages/Dashboard'
 import Login from './pages/Login'
 import Onboarding from './pages/Onboarding'
 import Plan from './pages/Plan'
@@ -12,7 +12,22 @@ export default function App() {
   return (
     <Routes>
       <Route path="/" element={<Layout />}>
-        <Route index element={<Home />} />
+        <Route
+          index
+          element={
+            <ProtectedRoute>
+              <Dashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="dashboard"
+          element={
+            <ProtectedRoute>
+              <Dashboard />
+            </ProtectedRoute>
+          }
+        />
         <Route path="login" element={<Login />} />
         <Route path="onboarding" element={<Onboarding />} />
         <Route

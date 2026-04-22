@@ -225,7 +225,7 @@ export default function Onboarding() {
       const data = await res.json()
       localStorage.setItem('user_id', data.id)
       localStorage.setItem('email', data.email ?? form.email.trim())
-      navigate('/plan')
+      navigate('/')
     } catch (err) {
       setError(err.message)
     } finally {
