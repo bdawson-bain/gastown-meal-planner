@@ -30,6 +30,8 @@ from meal_generation import (  # noqa: E402
     MealPreferences,
     OpenAIServiceError,
     RateLimitError,
+    UserBio,
+    _compute_target_calories,
     build_system_prompt,
     build_user_prompt,
     generate_week_meal_plan,
@@ -63,9 +65,26 @@ def _meal_dict(**overrides) -> dict:
             {"name": "rolled oats", "quantity": 80, "unit": "g"},
             {"name": "milk", "quantity": 200, "unit": "ml"},
         ],
+        calories=450,
+        protein_g=18.5,
+        carbs_g=65.0,
+        fat_g=12.0,
     )
     base.update(overrides)
     return base
+
+
+def _bio(**overrides) -> UserBio:
+    defaults = dict(
+        height_cm=175,
+        weight_kg=Decimal("75"),
+        age=30,
+        sex="male",
+        activity_level="moderately_active",
+        fitness_goal="maintain",
+    )
+    defaults.update(overrides)
+    return UserBio(**defaults)
 
 
 def _fake_completion(content: str) -> MagicMock:
@@ -415,6 +434,168 @@ class TestGenerateWeekMealPlanFeedback(unittest.TestCase):
         _setup_client(_full_plan())
         rows = generate_week_meal_plan(_prefs(), api_key="sk-test", feedback=None)
         self.assertEqual(len(rows), 21)
+
+
+# ---------------------------------------------------------------------------
+# _compute_target_calories
+# ---------------------------------------------------------------------------
+
+class TestComputeTargetCalories(unittest.TestCase):
+    def test_returns_2000_when_bio_is_none(self):
+        self.assertEqual(_compute_target_calories(None), 2000)
+
+    def test_returns_2000_when_fields_missing(self):
+        self.assertEqual(_compute_target_calories(UserBio(height_cm=175)), 2000)
+
+    def test_returns_2000_for_unknown_activity_level(self):
+        bio = _bio(activity_level="unknown_level")
+        self.assertEqual(_compute_target_calories(bio), 2000)
+
+    def test_male_mifflin_st_jeor(self):
+        # 175cm, 75kg, 30yo male, sedentary:
+        # BMR = 10*75 + 6.25*175 - 5*30 + 5 = 1698.75; TDEE = round(1698.75 * 1.2) = 2038
+        bio = _bio(activity_level="sedentary", fitness_goal="maintain")
+        self.assertEqual(_compute_target_calories(bio), 2038)
+
+    def test_female_mifflin_st_jeor(self):
+        # 165cm, 60kg, 25yo female, lightly_active:
+        # BMR = 10*60 + 6.25*165 - 5*25 - 161 = 1345.25; TDEE = round(1345.25 * 1.375) = 1850
+        bio = _bio(height_cm=165, weight_kg=Decimal("60"), age=25, sex="female",
+                   activity_level="lightly_active", fitness_goal="maintain")
+        self.assertEqual(_compute_target_calories(bio), 1850)
+
+    def test_goal_cut_reduces_by_300(self):
+        bio_maintain = _bio(fitness_goal="maintain")
+        bio_cut = _bio(fitness_goal="cut")
+        self.assertEqual(
+            _compute_target_calories(bio_cut),
+            _compute_target_calories(bio_maintain) - 300,
+        )
+
+    def test_goal_bulk_increases_by_300(self):
+        bio_maintain = _bio(fitness_goal="maintain")
+        bio_bulk = _bio(fitness_goal="bulk")
+        self.assertEqual(
+            _compute_target_calories(bio_bulk),
+            _compute_target_calories(bio_maintain) + 300,
+        )
+
+    def test_goal_performance_increases_by_200(self):
+        bio_maintain = _bio(fitness_goal="maintain")
+        bio_perf = _bio(fitness_goal="performance")
+        self.assertEqual(
+            _compute_target_calories(bio_perf),
+            _compute_target_calories(bio_maintain) + 200,
+        )
+
+
+# ---------------------------------------------------------------------------
+# build_system_prompt — bio-aware calorie targeting
+# ---------------------------------------------------------------------------
+
+class TestBuildSystemPromptBio(unittest.TestCase):
+    def test_includes_default_2000_cal_when_no_bio(self):
+        prompt = build_system_prompt(_prefs())
+        self.assertIn("2000", prompt)
+        self.assertIn("calories/day", prompt)
+
+    def test_includes_bio_derived_calories(self):
+        bio = _bio(activity_level="sedentary", fitness_goal="maintain")
+        expected_cal = _compute_target_calories(bio)
+        prompt = build_system_prompt(_prefs(), bio=bio)
+        self.assertIn(str(expected_cal), prompt)
+
+    def test_includes_macro_targets(self):
+        prompt = build_system_prompt(_prefs())
+        self.assertIn("protein", prompt)
+        self.assertIn("carbs", prompt)
+        self.assertIn("fat", prompt)
+
+    def test_includes_goal_label(self):
+        bio = _bio(fitness_goal="cut")
+        prompt = build_system_prompt(_prefs(), bio=bio)
+        self.assertIn("cut", prompt)
+
+    def test_defaults_to_maintain_when_no_goal(self):
+        bio = _bio(fitness_goal=None)
+        prompt = build_system_prompt(_prefs(), bio=bio)
+        self.assertIn("maintain", prompt)
+
+
+# ---------------------------------------------------------------------------
+# build_user_prompt — macro fields in JSON schema
+# ---------------------------------------------------------------------------
+
+class TestBuildUserPromptMacros(unittest.TestCase):
+    def test_includes_calories_field(self):
+        self.assertIn("calories", build_user_prompt())
+
+    def test_includes_protein_g_field(self):
+        self.assertIn("protein_g", build_user_prompt())
+
+    def test_includes_carbs_g_field(self):
+        self.assertIn("carbs_g", build_user_prompt())
+
+    def test_includes_fat_g_field(self):
+        self.assertIn("fat_g", build_user_prompt())
+
+
+# ---------------------------------------------------------------------------
+# parse_meal_plan_response — macro field extraction
+# ---------------------------------------------------------------------------
+
+class TestParseMealMacros(unittest.TestCase):
+    def test_macros_extracted_when_present(self):
+        meals = parse_meal_plan_response(json.dumps({"meals": [_meal_dict()]}))
+        self.assertEqual(meals[0].calories, 450)
+        self.assertAlmostEqual(meals[0].protein_g, 18.5)
+        self.assertAlmostEqual(meals[0].carbs_g, 65.0)
+        self.assertAlmostEqual(meals[0].fat_g, 12.0)
+
+    def test_macros_are_none_when_absent(self):
+        meal = _meal_dict()
+        del meal["calories"]
+        del meal["protein_g"]
+        del meal["carbs_g"]
+        del meal["fat_g"]
+        meals = parse_meal_plan_response(json.dumps({"meals": [meal]}))
+        self.assertIsNone(meals[0].calories)
+        self.assertIsNone(meals[0].protein_g)
+        self.assertIsNone(meals[0].carbs_g)
+        self.assertIsNone(meals[0].fat_g)
+
+    def test_calories_is_int(self):
+        meals = parse_meal_plan_response(json.dumps({"meals": [_meal_dict(calories=450.7)]}))
+        self.assertIsInstance(meals[0].calories, int)
+        self.assertEqual(meals[0].calories, 450)
+
+    def test_macro_grams_are_float(self):
+        meals = parse_meal_plan_response(json.dumps({"meals": [_meal_dict()]}))
+        self.assertIsInstance(meals[0].protein_g, float)
+        self.assertIsInstance(meals[0].carbs_g, float)
+        self.assertIsInstance(meals[0].fat_g, float)
+
+
+# ---------------------------------------------------------------------------
+# generate_week_meal_plan — bio threading
+# ---------------------------------------------------------------------------
+
+class TestGenerateWeekMealPlanBio(unittest.TestCase):
+    def _get_system_prompt(self, client: MagicMock) -> str:
+        messages = client.chat.completions.create.call_args[1]["messages"]
+        return next(m["content"] for m in messages if m["role"] == "system")
+
+    def test_bio_calories_reach_system_prompt(self):
+        client = _setup_client(_full_plan())
+        bio = _bio(activity_level="sedentary", fitness_goal="maintain")
+        expected_cal = _compute_target_calories(bio)
+        generate_week_meal_plan(_prefs(), api_key="sk-test", bio=bio)
+        self.assertIn(str(expected_cal), self._get_system_prompt(client))
+
+    def test_no_bio_uses_default_2000(self):
+        client = _setup_client(_full_plan())
+        generate_week_meal_plan(_prefs(), api_key="sk-test", bio=None)
+        self.assertIn("2000", self._get_system_prompt(client))
 
 
 if __name__ == "__main__":

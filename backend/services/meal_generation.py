@@ -17,6 +17,21 @@ import openai
 DAYS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
 MEAL_TYPES = ["breakfast", "lunch", "dinner"]
 
+_ACTIVITY_MULTIPLIERS = {
+    "sedentary": 1.2,
+    "lightly_active": 1.375,
+    "moderately_active": 1.55,
+    "very_active": 1.725,
+    "extra_active": 1.9,
+}
+
+_GOAL_ADJUSTMENTS = {
+    "cut": -300,
+    "bulk": +300,
+    "maintain": 0,
+    "performance": +200,
+}
+
 
 # ---------------------------------------------------------------------------
 # Input / output types
@@ -31,6 +46,18 @@ class MealPreferences:
     allergies: list[str] = field(default_factory=list)
     budget: Optional[Decimal] = None
     cook_time_minutes: Optional[int] = None
+
+
+@dataclass
+class UserBio:
+    """Bio data used for bio-aware calorie and macro targeting."""
+
+    height_cm: Optional[int] = None
+    weight_kg: Optional[Decimal] = None
+    age: Optional[int] = None
+    sex: Optional[str] = None
+    activity_level: Optional[str] = None
+    fitness_goal: Optional[str] = None
 
 
 @dataclass
@@ -50,6 +77,10 @@ class GeneratedMealRow:
     name: str
     description: str
     ingredients_json: list[dict[str, Any]]  # [{name, quantity, unit}, …]
+    calories: Optional[int] = None
+    protein_g: Optional[float] = None
+    carbs_g: Optional[float] = None
+    fat_g: Optional[float] = None
 
 
 # ---------------------------------------------------------------------------
@@ -76,17 +107,54 @@ class MalformedResponseError(MealGenerationError):
 
 
 # ---------------------------------------------------------------------------
+# Calorie / macro targeting
+# ---------------------------------------------------------------------------
+
+def _compute_target_calories(bio: Optional[UserBio]) -> int:
+    """Return target daily calories using Mifflin-St Jeor + goal adjustment.
+
+    Falls back to 2000 if any required bio field is missing or unrecognised.
+    """
+    if bio is None:
+        return 2000
+    if any(v is None for v in (bio.height_cm, bio.weight_kg, bio.age, bio.sex, bio.activity_level)):
+        return 2000
+    multiplier = _ACTIVITY_MULTIPLIERS.get(bio.activity_level)
+    if multiplier is None:
+        return 2000
+    w = float(bio.weight_kg)
+    h = float(bio.height_cm)
+    a = float(bio.age)
+    if bio.sex == "male":
+        bmr = 10 * w + 6.25 * h - 5 * a + 5
+    elif bio.sex == "female":
+        bmr = 10 * w + 6.25 * h - 5 * a - 161
+    else:
+        bmr = 10 * w + 6.25 * h - 5 * a - 78
+    tdee = round(bmr * multiplier)
+    adjustment = _GOAL_ADJUSTMENTS.get(bio.fitness_goal or "maintain", 0)
+    return tdee + adjustment
+
+
+# ---------------------------------------------------------------------------
 # Prompt construction
 # ---------------------------------------------------------------------------
 
 def build_system_prompt(
     prefs: MealPreferences,
     feedback: Optional["FeedbackHints"] = None,
+    bio: Optional["UserBio"] = None,
 ) -> str:
     dietary = ", ".join(prefs.dietary_prefs) if prefs.dietary_prefs else "none"
     allergies = ", ".join(prefs.allergies) if prefs.allergies else "none"
     budget = f"${prefs.budget:.2f}/week" if prefs.budget else "not specified"
     cook_time = f"{prefs.cook_time_minutes} minutes max" if prefs.cook_time_minutes else "no limit"
+
+    cal = _compute_target_calories(bio)
+    protein_g = round(cal * 0.40 / 4)
+    carbs_g = round(cal * 0.35 / 4)
+    fat_g = round(cal * 0.25 / 9)
+    goal = (bio.fitness_goal if bio and bio.fitness_goal else "maintain")
 
     prompt = (
         "You are a meal planning assistant. Generate a 7-day meal plan as valid JSON.\n\n"
@@ -96,6 +164,10 @@ def build_system_prompt(
         f"- Allergies: {allergies}\n"
         f"- Weekly grocery budget: {budget}\n"
         f"- Max cook time per meal: {cook_time}\n"
+        f"\nNutrition targets:\n"
+        f"- Target: ~{cal} calories/day split across 3 meals. "
+        f"Macros: ~{protein_g}g protein (40%), ~{carbs_g}g carbs (35%), ~{fat_g}g fat (25%)"
+        f" — adjust ratios for {goal}.\n"
     )
 
     if feedback and (feedback.liked or feedback.disliked):
@@ -135,7 +207,11 @@ def build_user_prompt() -> str:
         '  "name": meal name (string)\n'
         '  "description": one-sentence prep description (string)\n'
         '  "ingredients": array where each element has "name" (string), "quantity" (number), '
-        '"unit" (string)\n\n'
+        '"unit" (string)\n'
+        '  "calories": estimated calories for this meal (integer)\n'
+        '  "protein_g": estimated protein in grams (number)\n'
+        '  "carbs_g": estimated carbohydrates in grams (number)\n'
+        '  "fat_g": estimated fat in grams (number)\n\n'
         "Cover exactly 7 days × 3 meal types = 21 meals. Do not include snacks."
     )
 
@@ -191,12 +267,21 @@ def _parse_meal(raw: dict[str, Any], index: int) -> GeneratedMealRow:
         for i, ing in enumerate(raw["ingredients"])
     ]
 
+    calories = raw.get("calories")
+    protein_g = raw.get("protein_g")
+    carbs_g = raw.get("carbs_g")
+    fat_g = raw.get("fat_g")
+
     return GeneratedMealRow(
         day=day,
         meal_type=meal_type,
         name=str(raw["name"]),
         description=str(raw["description"]),
         ingredients_json=ingredients,
+        calories=int(calories) if calories is not None else None,
+        protein_g=float(protein_g) if protein_g is not None else None,
+        carbs_g=float(carbs_g) if carbs_g is not None else None,
+        fat_g=float(fat_g) if fat_g is not None else None,
     )
 
 
@@ -238,6 +323,7 @@ def generate_week_meal_plan(
     model: str = "gpt-4o-mini",
     timeout: float = 120.0,
     feedback: Optional[FeedbackHints] = None,
+    bio: Optional[UserBio] = None,
 ) -> list[GeneratedMealRow]:
     """
     Generate a 7-day meal plan via OpenAI chat completions.
@@ -257,7 +343,7 @@ def generate_week_meal_plan(
         response = client.chat.completions.create(
             model=model,
             messages=[
-                {"role": "system", "content": build_system_prompt(prefs, feedback)},
+                {"role": "system", "content": build_system_prompt(prefs, feedback, bio)},
                 {"role": "user", "content": build_user_prompt()},
             ],
             response_format={"type": "json_object"},
@@ -374,6 +460,12 @@ def generate_weekly_meals(
     cook_time_minutes: int | None = None,
     liked_meals: list[str] | None = None,
     disliked_meals: list[str] | None = None,
+    height_cm: int | None = None,
+    weight_kg: float | None = None,
+    age: int | None = None,
+    sex: str | None = None,
+    activity_level: str | None = None,
+    fitness_goal: str | None = None,
 ) -> list[dict[str, Any]]:
     """Flat-kwargs wrapper around generate_week_meal_plan; returns dicts."""
     prefs = MealPreferences(
@@ -386,7 +478,17 @@ def generate_weekly_meals(
     feedback: Optional[FeedbackHints] = None
     if liked_meals or disliked_meals:
         feedback = FeedbackHints(liked=liked_meals or [], disliked=disliked_meals or [])
-    rows = generate_week_meal_plan(prefs, api_key=api_key, feedback=feedback)
+    bio: Optional[UserBio] = None
+    if any(v is not None for v in (height_cm, weight_kg, age, sex, activity_level)):
+        bio = UserBio(
+            height_cm=height_cm,
+            weight_kg=Decimal(str(weight_kg)) if weight_kg is not None else None,
+            age=age,
+            sex=sex,
+            activity_level=activity_level,
+            fitness_goal=fitness_goal,
+        )
+    rows = generate_week_meal_plan(prefs, api_key=api_key, feedback=feedback, bio=bio)
     return [
         {
             "day": r.day,
@@ -394,6 +496,10 @@ def generate_weekly_meals(
             "name": r.name,
             "description": r.description,
             "ingredients": r.ingredients_json,
+            "calories": r.calories,
+            "protein_g": r.protein_g,
+            "carbs_g": r.carbs_g,
+            "fat_g": r.fat_g,
         }
         for r in rows
     ]

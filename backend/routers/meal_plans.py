@@ -229,6 +229,12 @@ def create_meal_plan(
             allergies=list(prefs.allergies or []),
             budget=float(prefs.budget) if prefs.budget else None,
             cook_time_minutes=prefs.cook_time_minutes,
+            height_cm=prefs.height_cm,
+            weight_kg=float(prefs.weight_kg) if prefs.weight_kg else None,
+            age=prefs.age,
+            sex=prefs.sex,
+            activity_level=prefs.activity_level,
+            fitness_goal=prefs.fitness_goal,
         )
     except (MealGenerationError, ValueError) as exc:
         raise HTTPException(status_code=502, detail=str(exc))
@@ -253,6 +259,10 @@ def create_meal_plan(
                 name=m["name"],
                 description=m.get("description"),
                 ingredients_json=m.get("ingredients"),
+                calories=m.get("calories"),
+                protein_g=m.get("protein_g"),
+                carbs_g=m.get("carbs_g"),
+                fat_g=m.get("fat_g"),
             )
         )
 
