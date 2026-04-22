@@ -10,10 +10,14 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.grocery_list import GroceryList
 from app.models.meal import Meal
-from app.models.meal_feedback import MealFeedback
 from app.models.meal_plan import MealPlan
 from app.models.user import User
-from services.meal_generation import generate_weekly_meals
+from services.meal_generation import (
+    MealGenerationError,
+    MealPreferences,
+    generate_single_meal,
+    generate_weekly_meals,
+)
 
 router = APIRouter(prefix="/api")
 
@@ -189,18 +193,6 @@ def create_meal_plan(
 
     week_start = body.week_start or _next_monday(date.today())
 
-    four_weeks_ago = datetime.utcnow() - timedelta(weeks=4)
-    recent_feedback = (
-        db.query(MealFeedback)
-        .filter(
-            MealFeedback.user_id == body.user_id,
-            MealFeedback.created_at >= four_weeks_ago,
-        )
-        .all()
-    )
-    liked_meals = [f.meal_name for f in recent_feedback if f.rating == "liked"] or None
-    disliked_meals = [f.meal_name for f in recent_feedback if f.rating == "disliked"] or None
-
     try:
         meal_dicts = generate_weekly_meals(
             api_key=prefs.openai_api_key,
@@ -209,8 +201,6 @@ def create_meal_plan(
             allergies=list(prefs.allergies or []),
             budget=float(prefs.budget) if prefs.budget else None,
             cook_time_minutes=prefs.cook_time_minutes,
-            liked_meals=liked_meals,
-            disliked_meals=disliked_meals,
         )
     except ValueError as exc:
         raise HTTPException(status_code=502, detail=str(exc))
@@ -287,3 +277,59 @@ def regenerate_grocery_list(plan_id: uuid.UUID, db: Session = Depends(get_db)) -
 
     grocery = _generate_and_store(plan, db)
     return _grocery_list_to_out(grocery)
+
+
+_VALID_DAYS = {"monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"}
+_VALID_MEAL_TYPES = {"breakfast", "lunch", "dinner"}
+
+
+@router.put("/meal-plans/{plan_id}/meals/{day}/{meal_type}", response_model=MealOut)
+def swap_meal(
+    plan_id: uuid.UUID,
+    day: str,
+    meal_type: str,
+    db: Session = Depends(get_db),
+) -> Meal:
+    if day not in _VALID_DAYS:
+        raise HTTPException(status_code=422, detail=f"Invalid day: {day!r}")
+    if meal_type not in _VALID_MEAL_TYPES:
+        raise HTTPException(status_code=422, detail=f"Invalid meal_type: {meal_type!r}")
+
+    plan = db.get(MealPlan, plan_id)
+    if plan is None:
+        raise HTTPException(status_code=404, detail="Meal plan not found")
+
+    user = db.get(User, plan.user_id)
+    prefs = user.preferences if user else None
+    if prefs is None or not prefs.openai_api_key:
+        raise HTTPException(status_code=422, detail="User has no OpenAI API key configured")
+
+    meal_prefs = MealPreferences(
+        household_size=prefs.household_size or 1,
+        dietary_prefs=list(prefs.dietary_prefs or []),
+        allergies=list(prefs.allergies or []),
+        budget=float(prefs.budget) if prefs.budget else None,
+        cook_time_minutes=prefs.cook_time_minutes,
+    )
+
+    try:
+        generated = generate_single_meal(day, meal_type, meal_prefs, api_key=prefs.openai_api_key)
+    except MealGenerationError as exc:
+        raise HTTPException(status_code=502, detail=str(exc))
+
+    meal = (
+        db.query(Meal)
+        .filter(Meal.meal_plan_id == plan_id, Meal.day == day, Meal.meal_type == meal_type)
+        .first()
+    )
+    if meal is None:
+        meal = Meal(meal_plan_id=plan_id, day=day, meal_type=meal_type)
+        db.add(meal)
+
+    meal.name = generated.name
+    meal.description = generated.description
+    meal.ingredients_json = generated.ingredients_json
+
+    db.commit()
+    db.refresh(meal)
+    return meal

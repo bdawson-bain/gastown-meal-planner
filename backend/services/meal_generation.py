@@ -44,14 +44,6 @@ class GeneratedMealRow:
     ingredients_json: list[dict[str, Any]]  # [{name, quantity, unit}, …]
 
 
-@dataclass
-class FeedbackHints:
-    """Meal names from recent feedback used to personalize the generation prompt."""
-
-    liked: list[str] = field(default_factory=list)
-    disliked: list[str] = field(default_factory=list)
-
-
 # ---------------------------------------------------------------------------
 # Exceptions
 # ---------------------------------------------------------------------------
@@ -79,50 +71,28 @@ class MalformedResponseError(MealGenerationError):
 # Prompt construction
 # ---------------------------------------------------------------------------
 
-def build_system_prompt(
-    prefs: MealPreferences,
-    feedback: Optional["FeedbackHints"] = None,
-) -> str:
+def build_system_prompt(prefs: MealPreferences) -> str:
     dietary = ", ".join(prefs.dietary_prefs) if prefs.dietary_prefs else "none"
     allergies = ", ".join(prefs.allergies) if prefs.allergies else "none"
     budget = f"${prefs.budget:.2f}/week" if prefs.budget else "not specified"
     cook_time = f"{prefs.cook_time_minutes} minutes max" if prefs.cook_time_minutes else "no limit"
 
-    prompt = (
+    return (
         "You are a meal planning assistant. Generate a 7-day meal plan as valid JSON.\n\n"
         "User profile:\n"
         f"- Household size: {prefs.household_size} person(s)\n"
         f"- Dietary preferences: {dietary}\n"
         f"- Allergies: {allergies}\n"
         f"- Weekly grocery budget: {budget}\n"
-        f"- Max cook time per meal: {cook_time}\n"
-    )
-
-    if feedback and (feedback.liked or feedback.disliked):
-        prompt += "\nMeal feedback from recent weeks:\n"
-        if feedback.liked:
-            liked_str = ", ".join(feedback.liked[:10])
-            prompt += f"- More like these (user enjoyed): {liked_str}\n"
-        if feedback.disliked:
-            disliked_str = ", ".join(feedback.disliked[:10])
-            prompt += f"- Avoid these patterns (user disliked): {disliked_str}\n"
-
-    prompt += (
-        "\nRules:\n"
+        f"- Max cook time per meal: {cook_time}\n\n"
+        "Rules:\n"
         "1. Respect all dietary preferences and allergies absolutely.\n"
         "2. Scale ingredient quantities for the household size.\n"
         "3. Keep each meal within the stated cook time.\n"
         "4. Prefer budget-friendly ingredients when a budget is given.\n"
         "5. Vary meals across the week — do not repeat the same meal twice.\n"
+        "6. Respond with ONLY valid JSON — no prose, no markdown fences."
     )
-
-    if feedback and feedback.liked:
-        prompt += "6. Favour meals similar in style to the liked meals listed above.\n"
-    if feedback and feedback.disliked:
-        prompt += "7. Do not suggest meals similar to the disliked meals listed above.\n"
-
-    prompt += "- Respond with ONLY valid JSON — no prose, no markdown fences."
-    return prompt
 
 
 def build_user_prompt() -> str:
@@ -238,7 +208,6 @@ def generate_week_meal_plan(
     api_key: str,
     model: str = "gpt-4o-mini",
     timeout: float = 30.0,
-    feedback: Optional[FeedbackHints] = None,
 ) -> list[GeneratedMealRow]:
     """
     Generate a 7-day meal plan via OpenAI chat completions.
@@ -258,7 +227,7 @@ def generate_week_meal_plan(
         response = client.chat.completions.create(
             model=model,
             messages=[
-                {"role": "system", "content": build_system_prompt(prefs, feedback)},
+                {"role": "system", "content": build_system_prompt(prefs)},
                 {"role": "user", "content": build_user_prompt()},
             ],
             response_format={"type": "json_object"},
@@ -279,6 +248,90 @@ def generate_week_meal_plan(
 
 
 # ---------------------------------------------------------------------------
+# Single-meal generation
+# ---------------------------------------------------------------------------
+
+def _build_swap_system_prompt(prefs: MealPreferences) -> str:
+    dietary = ", ".join(prefs.dietary_prefs) if prefs.dietary_prefs else "none"
+    allergies = ", ".join(prefs.allergies) if prefs.allergies else "none"
+    budget = f"${prefs.budget:.2f}/week" if prefs.budget else "not specified"
+    cook_time = f"{prefs.cook_time_minutes} minutes max" if prefs.cook_time_minutes else "no limit"
+
+    return (
+        "You are a meal planning assistant. Generate a single meal as valid JSON.\n\n"
+        "User profile:\n"
+        f"- Household size: {prefs.household_size} person(s)\n"
+        f"- Dietary preferences: {dietary}\n"
+        f"- Allergies: {allergies}\n"
+        f"- Weekly grocery budget: {budget}\n"
+        f"- Max cook time per meal: {cook_time}\n\n"
+        "Rules:\n"
+        "1. Respect all dietary preferences and allergies absolutely.\n"
+        "2. Scale ingredient quantities for the household size.\n"
+        "3. Keep the meal within the stated cook time.\n"
+        "4. Prefer budget-friendly ingredients when a budget is given.\n"
+        "5. Respond with ONLY valid JSON — no prose, no markdown fences."
+    )
+
+
+def _build_swap_user_prompt(day: str, meal_type: str) -> str:
+    return (
+        f"Generate ONE {meal_type} meal suitable for {day}.\n\n"
+        'Return a JSON object with a single key "meal" whose value is an object with exactly these fields:\n'
+        f'  "day": "{day}"\n'
+        f'  "meal_type": "{meal_type}"\n'
+        '  "name": meal name (string)\n'
+        '  "description": one-sentence prep description (string)\n'
+        '  "ingredients": array where each element has "name" (string), "quantity" (number), "unit" (string)'
+    )
+
+
+def generate_single_meal(
+    day: str,
+    meal_type: str,
+    prefs: MealPreferences,
+    *,
+    api_key: str,
+    model: str = "gpt-4o-mini",
+    timeout: float = 30.0,
+) -> GeneratedMealRow:
+    """Generate one replacement meal via OpenAI chat completions."""
+    client = openai.OpenAI(api_key=api_key, timeout=timeout)
+
+    try:
+        response = client.chat.completions.create(
+            model=model,
+            messages=[
+                {"role": "system", "content": _build_swap_system_prompt(prefs)},
+                {"role": "user", "content": _build_swap_user_prompt(day, meal_type)},
+            ],
+            response_format={"type": "json_object"},
+            temperature=0.8,
+            max_tokens=512,
+        )
+    except openai.AuthenticationError as exc:
+        raise ApiKeyError(f"OpenAI rejected the API key: {exc}") from exc
+    except openai.RateLimitError as exc:
+        raise RateLimitError(f"OpenAI rate limit exceeded: {exc}") from exc
+    except openai.APIStatusError as exc:
+        raise OpenAIServiceError(f"OpenAI service error ({exc.status_code}): {exc}") from exc
+    except openai.APITimeoutError as exc:
+        raise GenerationTimeoutError(f"OpenAI request timed out: {exc}") from exc
+
+    raw_text = response.choices[0].message.content or ""
+
+    try:
+        data = json.loads(raw_text)
+    except json.JSONDecodeError as exc:
+        raise MalformedResponseError(f"Response is not valid JSON: {exc}") from exc
+
+    if not isinstance(data, dict) or "meal" not in data:
+        raise MalformedResponseError("Expected a JSON object with a 'meal' key")
+
+    return _parse_meal(data["meal"], 0)
+
+
+# ---------------------------------------------------------------------------
 # Compatibility adapter used by routers/meal_plans.py
 # ---------------------------------------------------------------------------
 
@@ -289,8 +342,6 @@ def generate_weekly_meals(
     allergies: list[str] | None = None,
     budget: float | None = None,
     cook_time_minutes: int | None = None,
-    liked_meals: list[str] | None = None,
-    disliked_meals: list[str] | None = None,
 ) -> list[dict[str, Any]]:
     """Flat-kwargs wrapper around generate_week_meal_plan; returns dicts."""
     prefs = MealPreferences(
@@ -300,13 +351,7 @@ def generate_weekly_meals(
         budget=Decimal(str(budget)) if budget is not None else None,
         cook_time_minutes=cook_time_minutes,
     )
-    feedback: Optional[FeedbackHints] = None
-    if liked_meals or disliked_meals:
-        feedback = FeedbackHints(
-            liked=liked_meals or [],
-            disliked=disliked_meals or [],
-        )
-    rows = generate_week_meal_plan(prefs, api_key=api_key, feedback=feedback)
+    rows = generate_week_meal_plan(prefs, api_key=api_key)
     return [
         {
             "day": r.day,

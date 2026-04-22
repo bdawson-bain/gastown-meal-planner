@@ -32,7 +32,6 @@ const COOK_TIME_OPTIONS = [
 ]
 
 const STEPS = [
-  'Email',
   'Household',
   'Diet',
   'Allergies',
@@ -107,7 +106,6 @@ export default function Onboarding() {
   const [error, setError] = useState(null)
 
   const [form, setForm] = useState({
-    email: '',
     household_size: 1,
     dietary_prefs: [],
     allergies: [],
@@ -119,10 +117,9 @@ export default function Onboarding() {
   const set = (key, value) => setForm((f) => ({ ...f, [key]: value }))
 
   const canAdvance = () => {
-    if (step === 0) return form.email.trim().length > 0 && form.email.includes('@')
-    if (step === 1) return form.household_size >= 1
-    if (step === 4) return form.budget !== '' && Number(form.budget) > 0
-    if (step === 6) return form.openai_api_key.trim().length > 0
+    if (step === 0) return form.household_size >= 1
+    if (step === 3) return form.budget !== '' && Number(form.budget) > 0
+    if (step === 5) return form.openai_api_key.trim().length > 0
     return true
   }
 
@@ -137,7 +134,6 @@ export default function Onboarding() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          email: form.email.trim(),
           household_size: Number(form.household_size),
           dietary_prefs: form.dietary_prefs,
           allergies: form.allergies,
@@ -151,8 +147,7 @@ export default function Onboarding() {
         throw new Error(detail?.detail ?? `Server error ${res.status}`)
       }
       const data = await res.json()
-      localStorage.setItem('user_id', data.id)
-      localStorage.setItem('email', data.email ?? form.email.trim())
+      localStorage.setItem('gastownmeals:user_id', data.id)
       navigate('/plan')
     } catch (err) {
       setError(err.message)
@@ -173,23 +168,6 @@ export default function Onboarding() {
 
         <div className="bg-white border border-gray-100 rounded-2xl p-8 shadow-md">
           {step === 0 && (
-            <div>
-              <h2 className="text-xl font-bold text-gray-900 mb-1">Your email</h2>
-              <p className="text-gray-500 text-sm mb-6">
-                Used to access your account on future visits.
-              </p>
-              <input
-                type="email"
-                placeholder="you@example.com"
-                value={form.email}
-                onChange={(e) => set('email', e.target.value)}
-                className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-400 focus:border-transparent transition-shadow"
-                autoComplete="email"
-              />
-            </div>
-          )}
-
-          {step === 1 && (
             <div>
               <h2 className="text-xl font-bold text-gray-900 mb-1">Household size</h2>
               <p className="text-gray-500 text-sm mb-6">
@@ -220,7 +198,7 @@ export default function Onboarding() {
             </div>
           )}
 
-          {step === 2 && (
+          {step === 1 && (
             <div>
               <h2 className="text-xl font-bold text-gray-900 mb-1">Dietary preferences</h2>
               <p className="text-gray-500 text-sm mb-6">
@@ -234,7 +212,7 @@ export default function Onboarding() {
             </div>
           )}
 
-          {step === 3 && (
+          {step === 2 && (
             <div>
               <h2 className="text-xl font-bold text-gray-900 mb-1">Allergies</h2>
               <p className="text-gray-500 text-sm mb-6">
@@ -248,7 +226,7 @@ export default function Onboarding() {
             </div>
           )}
 
-          {step === 4 && (
+          {step === 3 && (
             <div>
               <h2 className="text-xl font-bold text-gray-900 mb-1">Weekly grocery budget</h2>
               <p className="text-gray-500 text-sm mb-6">
@@ -272,7 +250,7 @@ export default function Onboarding() {
             </div>
           )}
 
-          {step === 5 && (
+          {step === 4 && (
             <div>
               <h2 className="text-xl font-bold text-gray-900 mb-1">Max cook time per meal</h2>
               <p className="text-gray-500 text-sm mb-6">
@@ -297,7 +275,7 @@ export default function Onboarding() {
             </div>
           )}
 
-          {step === 6 && (
+          {step === 5 && (
             <div>
               <h2 className="text-xl font-bold text-gray-900 mb-1">OpenAI API key</h2>
               <p className="text-gray-500 text-sm mb-4">
