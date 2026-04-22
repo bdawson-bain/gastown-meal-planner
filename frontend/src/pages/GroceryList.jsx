@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 
 const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:8000'
 const USER_KEY = 'user_id'
-const CHECKED_KEY = 'gastownmeals:grocery-checked'
+const CHECKED_KEY = 'forma:grocery-checked'
 
 const CATEGORY_ICONS = {
   produce: '🥦',

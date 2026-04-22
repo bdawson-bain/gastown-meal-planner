@@ -13,7 +13,7 @@ async def lifespan(app: FastAPI):
     yield
 
 
-app = FastAPI(title="Gas Town Meal Planner API", lifespan=lifespan)
+app = FastAPI(title="Forma API", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
