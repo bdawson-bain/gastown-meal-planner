@@ -63,12 +63,17 @@ class MealPlanOut(BaseModel):
 
 
 class MealPlanSummary(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
     id: uuid.UUID
-    user_id: uuid.UUID
     week_start: date
-    created_at: datetime
+    name: Optional[str]
+    is_active: bool
+    meal_count: int
+    avg_calories_per_day: Optional[float]
+
+
+class UpdateMealPlanRequest(BaseModel):
+    name: Optional[str] = None
+    is_active: Optional[bool] = None
 
 
 class GroceryItem(BaseModel):
@@ -84,6 +89,25 @@ class GroceryListOut(BaseModel):
     id: uuid.UUID
     meal_plan_id: uuid.UUID
     items: List[GroceryItem]
+
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+
+def _plan_to_summary(plan: MealPlan) -> MealPlanSummary:
+    meal_count = len(plan.meals)
+    cals = [m.calories for m in plan.meals if m.calories is not None]
+    avg_cal = round(sum(cals) / 7, 1) if cals else None
+    return MealPlanSummary(
+        id=plan.id,
+        week_start=plan.week_start,
+        name=plan.name,
+        is_active=plan.is_active,
+        meal_count=meal_count,
+        avg_calories_per_day=avg_cal,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -209,7 +233,14 @@ def create_meal_plan(
     except (MealGenerationError, ValueError) as exc:
         raise HTTPException(status_code=502, detail=str(exc))
 
-    plan = MealPlan(user_id=body.user_id, week_start=week_start)
+    # Deactivate any existing active plan for this user before creating a new one
+    db.query(MealPlan).filter(
+        MealPlan.user_id == body.user_id,
+        MealPlan.is_active.is_(True),
+    ).update({"is_active": False})
+
+    plan_name = f"Week of {week_start.strftime('%-b %-d')}"
+    plan = MealPlan(user_id=body.user_id, week_start=week_start, name=plan_name, is_active=True)
     db.add(plan)
     db.flush()
 
@@ -242,7 +273,7 @@ def get_meal_plan(plan_id: uuid.UUID, db: Session = Depends(get_db)) -> MealPlan
 def list_user_meal_plans(
     user_id: uuid.UUID,
     db: Session = Depends(get_db),
-) -> list[MealPlan]:
+) -> List[MealPlanSummary]:
     user = db.get(User, user_id)
     if user is None:
         raise HTTPException(status_code=404, detail="User not found")
@@ -250,10 +281,37 @@ def list_user_meal_plans(
     plans = (
         db.query(MealPlan)
         .filter(MealPlan.user_id == user_id)
-        .order_by(MealPlan.created_at.desc())
+        .order_by(MealPlan.week_start.desc())
         .all()
     )
-    return plans
+    return [_plan_to_summary(p) for p in plans]
+
+
+@router.put("/meal-plans/{plan_id}", response_model=MealPlanSummary)
+def update_meal_plan(
+    plan_id: uuid.UUID,
+    body: UpdateMealPlanRequest,
+    db: Session = Depends(get_db),
+) -> MealPlanSummary:
+    plan = db.get(MealPlan, plan_id)
+    if plan is None:
+        raise HTTPException(status_code=404, detail="Meal plan not found")
+
+    if body.name is not None:
+        plan.name = body.name
+
+    if body.is_active is True:
+        db.query(MealPlan).filter(
+            MealPlan.user_id == plan.user_id,
+            MealPlan.id != plan_id,
+        ).update({"is_active": False})
+        plan.is_active = True
+    elif body.is_active is False:
+        plan.is_active = False
+
+    db.commit()
+    db.refresh(plan)
+    return _plan_to_summary(plan)
 
 
 @router.get("/meal-plans/{plan_id}/grocery-list", response_model=GroceryListOut)
