@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
+import { getMealImage } from '../utils/mealImage'
 
 const DAYS_OF_WEEK = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
 const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
@@ -52,14 +53,14 @@ function ThumbDown() {
 function SwapIcon({ spinning }) {
   if (spinning) {
     return (
-      <svg className="w-3.5 h-3.5 text-indigo-500 animate-spin" fill="none" viewBox="0 0 24 24">
+      <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
       </svg>
     )
   }
   return (
-    <svg className="w-3.5 h-3.5 text-gray-400 group-hover/btn:text-indigo-500 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
       <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h5M20 20v-5h-5M4 9a9 9 0 0114.83-3.83M20 15a9 9 0 01-14.83 3.83" />
     </svg>
   )
@@ -117,6 +118,24 @@ function getWeeklyAvg(mealMap) {
   }
 }
 
+function MealCardSkeleton() {
+  return (
+    <div className="rounded-2xl overflow-hidden shadow-sm animate-pulse">
+      <div className="h-44 bg-gray-200" />
+      <div className="bg-white p-4 space-y-2">
+        <div className="h-4 bg-gray-200 rounded w-3/4" />
+        <div className="h-3 bg-gray-100 rounded" />
+        <div className="h-3 bg-gray-100 rounded w-2/3" />
+        <div className="flex gap-1 mt-2">
+          <div className="h-4 w-16 bg-gray-100 rounded-full" />
+          <div className="h-4 w-12 bg-gray-100 rounded-full" />
+          <div className="h-4 w-12 bg-gray-100 rounded-full" />
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function MealCard({ meal, onSwap, swapping }) {
   const [feedback, setFeedback] = useState(null)
 
@@ -138,49 +157,63 @@ function MealCard({ meal, onSwap, swapping }) {
 
   if (!meal) {
     return (
-      <div className="rounded-lg border border-dashed border-gray-200 p-3 h-full flex items-center justify-center min-h-[72px]">
+      <div className="rounded-2xl border border-dashed border-gray-200 p-3 h-full flex items-center justify-center min-h-[72px]">
         <span className="text-xs text-gray-300">—</span>
       </div>
     )
   }
+
   return (
-    <div className="group relative rounded-lg border border-gray-100 bg-white p-3 h-full shadow-sm min-h-[72px] flex flex-col">
-      <p className="text-sm font-medium text-gray-900 leading-snug pr-6">{meal.name}</p>
-      <p className="mt-1 text-xs text-gray-500 line-clamp-2 flex-1">{meal.description}</p>
-      <MacroStrip meal={meal} />
-      <div className="flex gap-0.5 mt-1.5 justify-end">
-        <button
-          onClick={() => handleFeedback('liked')}
-          title="Like"
-          className={`p-1 rounded transition-colors ${
-            feedback === 'liked'
-              ? 'text-green-600 bg-green-50'
-              : 'text-gray-300 hover:text-green-500 hover:bg-green-50'
-          }`}
-        >
-          <ThumbUp />
-        </button>
-        <button
-          onClick={() => handleFeedback('disliked')}
-          title="Dislike"
-          className={`p-1 rounded transition-colors ${
-            feedback === 'disliked'
-              ? 'text-red-500 bg-red-50'
-              : 'text-gray-300 hover:text-red-400 hover:bg-red-50'
-          }`}
-        >
-          <ThumbDown />
-        </button>
+    <div className="group relative rounded-2xl overflow-hidden shadow-md hover:-translate-y-1 hover:shadow-xl transition-all duration-200 flex flex-col">
+      {/* Food photo */}
+      <div className="relative h-44 flex-shrink-0">
+        <img
+          src={getMealImage(meal.meal_type, meal.name)}
+          alt={meal.name}
+          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+          loading="lazy"
+        />
+        {/* Hover overlay with action buttons */}
+        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-end justify-end gap-1.5 p-2.5">
+          <button
+            onClick={(e) => { e.stopPropagation(); handleFeedback('liked') }}
+            title="Like"
+            className={`p-1.5 rounded-full transition-colors ${
+              feedback === 'liked'
+                ? 'bg-green-500 text-white'
+                : 'bg-white/80 text-gray-700 hover:bg-green-500 hover:text-white'
+            }`}
+          >
+            <ThumbUp />
+          </button>
+          <button
+            onClick={(e) => { e.stopPropagation(); handleFeedback('disliked') }}
+            title="Dislike"
+            className={`p-1.5 rounded-full transition-colors ${
+              feedback === 'disliked'
+                ? 'bg-red-500 text-white'
+                : 'bg-white/80 text-gray-700 hover:bg-red-500 hover:text-white'
+            }`}
+          >
+            <ThumbDown />
+          </button>
+          <button
+            onClick={(e) => { e.stopPropagation(); onSwap() }}
+            disabled={swapping}
+            title="Swap this meal"
+            className="p-1.5 rounded-full bg-white/80 text-gray-700 hover:bg-indigo-500 hover:text-white transition-colors disabled:cursor-not-allowed"
+            aria-label="Swap meal"
+          >
+            <SwapIcon spinning={swapping} />
+          </button>
+        </div>
       </div>
-      <button
-        onClick={onSwap}
-        disabled={swapping}
-        title="Swap this meal"
-        className="group/btn absolute top-2 right-2 opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity p-1 rounded-md hover:bg-indigo-50 disabled:cursor-not-allowed"
-        aria-label="Swap meal"
-      >
-        <SwapIcon spinning={swapping} />
-      </button>
+      {/* Card body */}
+      <div className="bg-white p-4 flex flex-col flex-1">
+        <p className="text-[15px] font-semibold text-gray-900 leading-snug">{meal.name}</p>
+        <p className="mt-1 text-[13px] text-gray-500 line-clamp-2 flex-1">{meal.description}</p>
+        <MacroStrip meal={meal} />
+      </div>
     </div>
   )
 }
@@ -326,12 +359,36 @@ export default function Plan() {
       )}
 
       {loading && (
-        <div className="flex items-center justify-center py-24">
-          <svg className="w-8 h-8 text-indigo-400 animate-spin" fill="none" viewBox="0 0 24 24">
-            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-          </svg>
-        </div>
+        <>
+          {/* Mobile skeleton */}
+          <div className="space-y-8 lg:hidden">
+            {DAYS_OF_WEEK.map((day) => (
+              <div key={day}>
+                <div className="h-4 w-10 bg-gray-200 rounded animate-pulse mb-3" />
+                <div className="grid grid-cols-3 gap-2">
+                  {SLOT_TYPES.map((slot) => <MealCardSkeleton key={slot} />)}
+                </div>
+              </div>
+            ))}
+          </div>
+          {/* Desktop skeleton */}
+          <div className="hidden lg:block overflow-x-auto">
+            <div className="min-w-[900px]">
+              <div className="grid grid-cols-[80px_repeat(7,1fr)] gap-2 mb-3">
+                <div />
+                {DAYS_OF_WEEK.map((d) => (
+                  <div key={d} className="h-4 bg-gray-100 rounded animate-pulse mx-4" />
+                ))}
+              </div>
+              {SLOT_TYPES.map((slot) => (
+                <div key={slot} className="grid grid-cols-[80px_repeat(7,1fr)] gap-2 mb-3">
+                  <div className="h-3 w-14 bg-gray-100 rounded animate-pulse mt-3 self-start" />
+                  {DAYS_OF_WEEK.map((d) => <MealCardSkeleton key={d} />)}
+                </div>
+              ))}
+            </div>
+          </div>
+        </>
       )}
 
       {!loading && !plan && !generating && (
@@ -348,13 +405,13 @@ export default function Plan() {
       {(plan || generating) && (
         <>
           {/* Mobile view */}
-          <div className="space-y-6 lg:hidden">
+          <div className="space-y-8 lg:hidden">
             {days.map(({ key: day, label, date }) => {
               const dayTotals = getDayTotals(mealMap, day)
               return (
                 <div key={day}>
-                  <div className="flex items-baseline gap-2 mb-2">
-                    <span className="text-base font-semibold text-gray-900">{label}</span>
+                  <div className="flex items-baseline gap-2 mb-3">
+                    <span className="text-[13px] font-medium text-gray-500 uppercase tracking-widest">{label}</span>
                     {date && <span className="text-xs text-gray-400">{date}</span>}
                   </div>
                   <div className="grid grid-cols-3 gap-2">
@@ -362,7 +419,7 @@ export default function Plan() {
                       const key = `${day}-${slot}`
                       return (
                         <div key={slot}>
-                          <p className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-1">
+                          <p className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-1.5">
                             {SLOT_LABELS[slot]}
                           </p>
                           <MealCard
@@ -375,9 +432,11 @@ export default function Plan() {
                     })}
                   </div>
                   {dayTotals && (
-                    <p className="mt-2 text-xs text-gray-400">
-                      Day total: {dayTotals.calories.toLocaleString()} cal / {Math.round(dayTotals.protein_g)}g P / {Math.round(dayTotals.carbs_g)}g C / {Math.round(dayTotals.fat_g)}g F
-                    </p>
+                    <div className="mt-3 pt-2 border-t border-gray-100">
+                      <p className="text-sm text-gray-600">
+                        {dayTotals.calories.toLocaleString()} cal · {Math.round(dayTotals.protein_g)}g P · {Math.round(dayTotals.carbs_g)}g C · {Math.round(dayTotals.fat_g)}g F
+                      </p>
+                    </div>
                   )}
                 </div>
               )
@@ -392,20 +451,20 @@ export default function Plan() {
           {/* Desktop view */}
           <div className="hidden lg:block overflow-x-auto">
             <div className="min-w-[900px]">
-              <div className="grid grid-cols-[80px_repeat(7,1fr)] gap-2 mb-2">
+              <div className="grid grid-cols-[80px_repeat(7,1fr)] gap-2 mb-3">
                 <div />
                 {days.map(({ key: day, label, date }) => (
                   <div key={day} className="text-center">
-                    <p className="text-sm font-semibold text-gray-900">{label}</p>
+                    <p className="text-[13px] font-medium text-gray-500 uppercase tracking-widest">{label}</p>
                     {date && <p className="text-xs text-gray-400">{date}</p>}
                   </div>
                 ))}
               </div>
 
               {SLOT_TYPES.map((slot) => (
-                <div key={slot} className="grid grid-cols-[80px_repeat(7,1fr)] gap-2 mb-2">
+                <div key={slot} className="grid grid-cols-[80px_repeat(7,1fr)] gap-2 mb-3">
                   <div className="flex items-start pt-3">
-                    <span className="text-xs font-medium text-gray-400 uppercase tracking-wide">
+                    <span className="text-[13px] font-medium text-gray-500 uppercase tracking-widest">
                       {SLOT_LABELS[slot]}
                     </span>
                   </div>
@@ -424,16 +483,16 @@ export default function Plan() {
               ))}
 
               {days.some(({ key: day }) => getDayTotals(mealMap, day) !== null) && (
-                <div className="grid grid-cols-[80px_repeat(7,1fr)] gap-2 mt-1 border-t border-gray-100 pt-2">
+                <div className="grid grid-cols-[80px_repeat(7,1fr)] gap-2 mt-1 border-t border-gray-100 pt-3">
                   <div className="flex items-center">
-                    <span className="text-xs font-medium text-gray-400 uppercase tracking-wide">Total</span>
+                    <span className="text-[13px] font-medium text-gray-500 uppercase tracking-widest">Total</span>
                   </div>
                   {days.map(({ key: day }) => {
                     const totals = getDayTotals(mealMap, day)
                     return (
                       <div key={day} className="text-center px-1">
                         {totals ? (
-                          <p className="text-[10px] text-gray-400 leading-snug">
+                          <p className="text-xs text-gray-600 leading-snug">
                             {totals.calories.toLocaleString()} cal
                             <br />
                             {Math.round(totals.protein_g)}P / {Math.round(totals.carbs_g)}C / {Math.round(totals.fat_g)}F
