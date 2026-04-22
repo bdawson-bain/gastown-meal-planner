@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { getMealImage } from '../utils/mealImage'
 
 const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:8000'
 const USER_KEY = 'user_id'
@@ -68,7 +69,7 @@ function todayTotals(meals, day) {
 // SVG circular progress ring
 function MacroRing({ label, value, target, unit, color }) {
   const r = 24
-  const circ = 2 * Math.PI * r // ≈ 150.8
+  const circ = 2 * Math.PI * r
   const pct = target > 0 ? Math.min(1, (value ?? 0) / target) : 0
   const dash = pct * circ
   const hasValue = value != null && value > 0
@@ -108,8 +109,50 @@ function MacroRing({ label, value, target, unit, color }) {
   )
 }
 
+function ThumbUp() {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-3.5 h-3.5">
+      <path d="M7.493 18.75c-.425 0-.82-.236-.975-.632A7.48 7.48 0 016 15.375c0-1.75.599-3.358 1.602-4.634.151-.192.373-.309.6-.397.473-.183.89-.514 1.212-.924a9.042 9.042 0 012.861-2.4c.723-.384 1.35-.956 1.653-1.715a4.498 4.498 0 00.322-1.672V3a.75.75 0 01.75-.75 2.25 2.25 0 012.25 2.25c0 1.152-.26 2.243-.723 3.218-.266.558.107 1.282.725 1.282h3.126c1.026 0 1.945.694 2.054 1.715.045.422.068.85.068 1.285a11.95 11.95 0 01-2.649 7.521c-.388.482-.987.729-1.605.729H14.23c-.483 0-.964-.078-1.423-.23l-3.114-1.04a4.501 4.501 0 00-1.423-.23h-.777zM4.5 10.5a1.5 1.5 0 00-1.5 1.5v6a1.5 1.5 0 001.5 1.5h.75a.75.75 0 00.75-.75v-7.5a.75.75 0 00-.75-.75H4.5z" />
+    </svg>
+  )
+}
+
+function ThumbDown() {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-3.5 h-3.5">
+      <path d="M15.73 5.25h1.035A7.465 7.465 0 0118 9.375a7.465 7.465 0 01-1.235 4.125h-.148c-.806 0-1.534.446-2.031 1.08a9.04 9.04 0 01-2.861 2.4c-.723.384-1.35.956-1.653 1.715a4.498 4.498 0 00-.322 1.672V21a.75.75 0 01-.75.75 2.25 2.25 0 01-2.25-2.25c0-1.152.26-2.243.723-3.218.266-.558-.107-1.282-.725-1.282H3.622c-1.026 0-1.945-.694-2.054-1.715A12.134 12.134 0 011.5 12c0-.476.024-.947.072-1.41.133-1.303 1.218-2.215 2.473-2.09h.734c.483 0 .964.078 1.423.23l3.114 1.04a4.5 4.5 0 001.423.23h.777zM19.5 13.5a1.5 1.5 0 001.5-1.5v-6a1.5 1.5 0 00-1.5-1.5h-.75a.75.75 0 00-.75.75v7.5c0 .414.336.75.75.75h.75z" />
+    </svg>
+  )
+}
+
+function SmallSpinner() {
+  return (
+    <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+    </svg>
+  )
+}
+
 function TodayMealCard({ meal, slot }) {
   const [expanded, setExpanded] = useState(false)
+  const [feedback, setFeedback] = useState(null)
+
+  const handleFeedback = async (rating) => {
+    const next = feedback === rating ? null : rating
+    setFeedback(next)
+    if (meal?.id && next !== null) {
+      try {
+        await fetch(`${API_BASE}/api/meals/${meal.id}/feedback`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ rating: next }),
+        })
+      } catch {
+        // non-critical
+      }
+    }
+  }
 
   if (!meal) {
     return (
@@ -122,66 +165,104 @@ function TodayMealCard({ meal, slot }) {
   }
 
   return (
-    <button
-      type="button"
-      onClick={() => setExpanded((e) => !e)}
-      className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 text-left w-full hover:border-gray-200 transition-colors"
-    >
-      <div className="flex items-start gap-2 mb-1">
-        <span className="text-xl flex-shrink-0">{SLOT_ICONS[slot]}</span>
-        <div className="flex-1 min-w-0">
-          <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">
-            {SLOT_LABELS[slot]}
-          </p>
-          <p className="text-sm font-semibold text-gray-900 leading-snug line-clamp-2">{meal.name}</p>
+    <div className="group relative rounded-2xl overflow-hidden shadow-md hover:-translate-y-1 hover:shadow-xl transition-all duration-200 flex flex-col">
+      {/* Food photo */}
+      <div className="relative h-36 flex-shrink-0">
+        <img
+          src={getMealImage(meal.meal_type, meal.name)}
+          alt={meal.name}
+          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+          loading="lazy"
+        />
+        {/* Feedback overlay */}
+        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-end justify-end gap-1.5 p-2">
+          <button
+            onClick={(e) => { e.stopPropagation(); handleFeedback('liked') }}
+            title="Like"
+            className={`p-1.5 rounded-full transition-colors ${
+              feedback === 'liked'
+                ? 'bg-green-500 text-white'
+                : 'bg-white/80 text-gray-700 hover:bg-green-500 hover:text-white'
+            }`}
+          >
+            <ThumbUp />
+          </button>
+          <button
+            onClick={(e) => { e.stopPropagation(); handleFeedback('disliked') }}
+            title="Dislike"
+            className={`p-1.5 rounded-full transition-colors ${
+              feedback === 'disliked'
+                ? 'bg-red-500 text-white'
+                : 'bg-white/80 text-gray-700 hover:bg-red-500 hover:text-white'
+            }`}
+          >
+            <ThumbDown />
+          </button>
         </div>
       </div>
-      {meal.calories != null && (
-        <p className="text-xs text-orange-600 font-medium mt-1.5">
-          {meal.calories.toLocaleString()} cal
+      {/* Card body — clickable to expand macros */}
+      <button
+        type="button"
+        onClick={() => setExpanded((e) => !e)}
+        className="bg-white p-4 flex flex-col flex-1 text-left hover:bg-gray-50 transition-colors"
+      >
+        <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">
+          {SLOT_LABELS[slot]}
         </p>
-      )}
-      {expanded && (
-        <div className="mt-2 flex gap-1.5 flex-wrap">
-          {meal.protein_g != null && (
-            <span className="text-[10px] font-medium text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded-full">
-              {Math.round(meal.protein_g)}g P
-            </span>
-          )}
-          {meal.carbs_g != null && (
-            <span className="text-[10px] font-medium text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded-full">
-              {Math.round(meal.carbs_g)}g C
-            </span>
-          )}
-          {meal.fat_g != null && (
-            <span className="text-[10px] font-medium text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-full">
-              {Math.round(meal.fat_g)}g F
-            </span>
-          )}
-          {meal.calories == null && (
-            <span className="text-[10px] text-gray-400 italic">Macro data unavailable</span>
-          )}
+        <p className="text-sm font-semibold text-gray-900 leading-snug line-clamp-2">{meal.name}</p>
+        {meal.calories != null && (
+          <p className="text-xs text-orange-600 font-medium mt-1.5">
+            {meal.calories.toLocaleString()} cal
+          </p>
+        )}
+        {expanded && (
+          <div className="mt-2 flex gap-1.5 flex-wrap">
+            {meal.protein_g != null && (
+              <span className="text-[10px] font-medium text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded-full">
+                {Math.round(meal.protein_g)}g P
+              </span>
+            )}
+            {meal.carbs_g != null && (
+              <span className="text-[10px] font-medium text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded-full">
+                {Math.round(meal.carbs_g)}g C
+              </span>
+            )}
+            {meal.fat_g != null && (
+              <span className="text-[10px] font-medium text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-full">
+                {Math.round(meal.fat_g)}g F
+              </span>
+            )}
+            {meal.calories == null && (
+              <span className="text-[10px] text-gray-400 italic">Macro data unavailable</span>
+            )}
+          </div>
+        )}
+      </button>
+    </div>
+  )
+}
+
+function PageSkeleton() {
+  return (
+    <div className="space-y-6">
+      <section>
+        <div className="h-5 w-28 bg-gray-200 rounded animate-pulse mb-3" />
+        <div className="grid grid-cols-3 gap-3">
+          {SLOTS.map((slot) => (
+            <div key={slot} className="rounded-2xl overflow-hidden shadow-sm animate-pulse">
+              <div className="h-36 bg-gray-200" />
+              <div className="bg-white p-4 space-y-2">
+                <div className="h-3 bg-gray-200 rounded w-16" />
+                <div className="h-4 bg-gray-200 rounded w-3/4" />
+                <div className="h-3 bg-gray-100 rounded w-1/2" />
+              </div>
+            </div>
+          ))}
         </div>
-      )}
-    </button>
-  )
-}
-
-function LoadingSpinner() {
-  return (
-    <svg className="w-8 h-8 text-green-400 animate-spin" fill="none" viewBox="0 0 24 24">
-      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-    </svg>
-  )
-}
-
-function SmallSpinner() {
-  return (
-    <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-    </svg>
+      </section>
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 h-32 animate-pulse" />
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 h-24 animate-pulse" />
+    </div>
   )
 }
 
@@ -314,9 +395,7 @@ export default function Dashboard() {
       )}
 
       {loading ? (
-        <div className="flex items-center justify-center py-24">
-          <LoadingSpinner />
-        </div>
+        <PageSkeleton />
       ) : (
         <>
           {/* Today's meals */}
