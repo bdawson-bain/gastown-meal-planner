@@ -33,6 +33,22 @@ function mealsToMap(meals) {
   return map
 }
 
+function ThumbUp() {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-3.5 h-3.5">
+      <path d="M7.493 18.75c-.425 0-.82-.236-.975-.632A7.48 7.48 0 016 15.375c0-1.75.599-3.358 1.602-4.634.151-.192.373-.309.6-.397.473-.183.89-.514 1.212-.924a9.042 9.042 0 012.861-2.4c.723-.384 1.35-.956 1.653-1.715a4.498 4.498 0 00.322-1.672V3a.75.75 0 01.75-.75 2.25 2.25 0 012.25 2.25c0 1.152-.26 2.243-.723 3.218-.266.558.107 1.282.725 1.282h3.126c1.026 0 1.945.694 2.054 1.715.045.422.068.85.068 1.285a11.95 11.95 0 01-2.649 7.521c-.388.482-.987.729-1.605.729H14.23c-.483 0-.964-.078-1.423-.23l-3.114-1.04a4.501 4.501 0 00-1.423-.23h-.777zM4.5 10.5a1.5 1.5 0 00-1.5 1.5v6a1.5 1.5 0 001.5 1.5h.75a.75.75 0 00.75-.75v-7.5a.75.75 0 00-.75-.75H4.5z" />
+    </svg>
+  )
+}
+
+function ThumbDown() {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-3.5 h-3.5">
+      <path d="M15.73 5.25h1.035A7.465 7.465 0 0118 9.375a7.465 7.465 0 01-1.235 4.125h-.148c-.806 0-1.534.446-2.031 1.08a9.04 9.04 0 01-2.861 2.4c-.723.384-1.35.956-1.653 1.715a4.498 4.498 0 00-.322 1.672V21a.75.75 0 01-.75.75 2.25 2.25 0 01-2.25-2.25c0-1.152.26-2.243.723-3.218.266-.558-.107-1.282-.725-1.282H3.622c-1.026 0-1.945-.694-2.054-1.715A12.134 12.134 0 011.5 12c0-.476.024-.947.072-1.41.133-1.303 1.218-2.215 2.473-2.09h.734c.483 0 .964.078 1.423.23l3.114 1.04a4.5 4.5 0 001.423.23h.777zM19.5 13.5a1.5 1.5 0 001.5-1.5v-6a1.5 1.5 0 00-1.5-1.5h-.75a.75.75 0 00-.75.75v7.5c0 .414.336.75.75.75h.75z" />
+    </svg>
+  )
+}
+
 function SwapIcon({ spinning }) {
   if (spinning) {
     return (
@@ -50,6 +66,24 @@ function SwapIcon({ spinning }) {
 }
 
 function MealCard({ meal, onSwap, swapping }) {
+  const [feedback, setFeedback] = useState(null)
+
+  const handleFeedback = async (rating) => {
+    const next = feedback === rating ? null : rating
+    setFeedback(next)
+    if (meal?.id && next !== null) {
+      try {
+        await fetch(`${API_BASE}/api/meals/${meal.id}/feedback`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ rating: next }),
+        })
+      } catch {
+        // non-critical — feedback is best-effort
+      }
+    }
+  }
+
   if (!meal) {
     return (
       <div className="rounded-lg border border-dashed border-gray-200 p-3 h-full flex items-center justify-center min-h-[72px]">
@@ -58,9 +92,33 @@ function MealCard({ meal, onSwap, swapping }) {
     )
   }
   return (
-    <div className="group relative rounded-lg border border-gray-100 bg-white p-3 h-full shadow-sm min-h-[72px]">
+    <div className="group relative rounded-lg border border-gray-100 bg-white p-3 h-full shadow-sm min-h-[72px] flex flex-col">
       <p className="text-sm font-medium text-gray-900 leading-snug pr-6">{meal.name}</p>
-      <p className="mt-1 text-xs text-gray-500 line-clamp-2">{meal.description}</p>
+      <p className="mt-1 text-xs text-gray-500 line-clamp-2 flex-1">{meal.description}</p>
+      <div className="flex gap-0.5 mt-1.5 justify-end">
+        <button
+          onClick={() => handleFeedback('liked')}
+          title="Like"
+          className={`p-1 rounded transition-colors ${
+            feedback === 'liked'
+              ? 'text-green-600 bg-green-50'
+              : 'text-gray-300 hover:text-green-500 hover:bg-green-50'
+          }`}
+        >
+          <ThumbUp />
+        </button>
+        <button
+          onClick={() => handleFeedback('disliked')}
+          title="Dislike"
+          className={`p-1 rounded transition-colors ${
+            feedback === 'disliked'
+              ? 'text-red-500 bg-red-50'
+              : 'text-gray-300 hover:text-red-400 hover:bg-red-50'
+          }`}
+        >
+          <ThumbDown />
+        </button>
+      </div>
       <button
         onClick={onSwap}
         disabled={swapping}
