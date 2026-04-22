@@ -48,7 +48,7 @@ function loadChecked() {
 function saveChecked(set) {
   try {
     localStorage.setItem(CHECKED_KEY, JSON.stringify([...set]))
-  } catch {}
+  } catch {} // eslint-disable-line no-empty
 }
 
 function formatQty(item) {

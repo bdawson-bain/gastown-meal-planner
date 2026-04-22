@@ -236,7 +236,7 @@ def generate_week_meal_plan(
     *,
     api_key: str,
     model: str = "gpt-4o-mini",
-    timeout: float = 30.0,
+    timeout: float = 120.0,
     feedback: Optional[FeedbackHints] = None,
 ) -> list[GeneratedMealRow]:
     """
@@ -323,7 +323,7 @@ def generate_single_meal(
     *,
     api_key: str,
     model: str = "gpt-4o-mini",
-    timeout: float = 30.0,
+    timeout: float = 60.0,
 ) -> GeneratedMealRow:
     """Generate one replacement meal via OpenAI chat completions."""
     client = openai.OpenAI(api_key=api_key, timeout=timeout)

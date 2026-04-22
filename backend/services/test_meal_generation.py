@@ -310,7 +310,7 @@ class TestGenerateWeekMealPlan(unittest.TestCase):
     def test_openai_client_receives_api_key(self):
         _setup_client(_full_plan())
         generate_week_meal_plan(_prefs(), api_key="sk-mykey")
-        _mock_openai.OpenAI.assert_called_with(api_key="sk-mykey", timeout=30.0)
+        _mock_openai.OpenAI.assert_called_with(api_key="sk-mykey", timeout=120.0)
 
     def test_custom_timeout_is_passed(self):
         _setup_client(_full_plan())

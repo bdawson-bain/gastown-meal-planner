@@ -246,7 +246,7 @@ export default function Plan() {
             disabled={generating || loading}
             className="px-4 py-2 rounded-lg bg-indigo-600 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
-            {generating ? 'Generating…' : plan ? 'Generate new plan' : 'Generate plan'}
+            {generating ? 'Generating your plan (this may take ~60s)…' : plan ? 'Generate new plan' : 'Generate plan'}
           </button>
         </div>
       </div>
