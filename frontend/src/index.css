@@ -1,10 +1,21 @@
 @import "tailwindcss";
 
+@theme {
+  --color-forest: #2d6a4f;
+  --color-forest-dark: #1e4d38;
+  --color-cream: #faf7f2;
+  --color-ink: #1c1917;
+  --color-ink-subtle: #78716c;
+
+  --font-fraunces: 'Fraunces', Georgia, serif;
+  --font-dm-sans: 'DM Sans', system-ui, sans-serif;
+}
+
 @layer base {
   body {
     font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
-    background-color: #fafaf9;
-    color: #111827;
+    background-color: #faf7f2;
+    color: #1c1917;
     -webkit-font-smoothing: antialiased;
   }
 }
