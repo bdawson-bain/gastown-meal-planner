@@ -1,7 +1,9 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 
-const navLinks = [
+const guestLinks = [
   { to: '/onboarding', label: 'Get Started' },
+]
+const authLinks = [
   { to: '/plan', label: 'Meal Plan' },
   { to: '/grocery-list', label: 'Grocery List' },
 ]
@@ -9,6 +11,7 @@ const navLinks = [
 export default function Layout() {
   const navigate = useNavigate()
   const isLoggedIn = !!localStorage.getItem('user_id')
+  const navLinks = isLoggedIn ? authLinks : guestLinks
 
   const handleLogout = () => {
     localStorage.removeItem('user_id')

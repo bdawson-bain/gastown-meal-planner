@@ -7,7 +7,7 @@ const SLOT_TYPES = ['breakfast', 'lunch', 'dinner']
 const SLOT_LABELS = { breakfast: 'Breakfast', lunch: 'Lunch', dinner: 'Dinner' }
 
 const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:8000'
-const USER_KEY = 'gastownmeals:user_id'
+const USER_KEY = 'user_id'
 
 function getDayDate(weekStart, dayIndex) {
   if (!weekStart) return ''
@@ -225,7 +225,7 @@ export default function Plan() {
   }))
 
   return (
-    <div>
+    <div className="max-w-6xl mx-auto px-6 py-8">
       {/* Header */}
       <div className="flex flex-col gap-4 mb-6 sm:flex-row sm:items-start sm:justify-between">
         <div>

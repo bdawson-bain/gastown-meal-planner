@@ -1,95 +1,45 @@
 import { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 
-const GROCERY_ITEMS = [
-  // Produce
-  { id: 'p1',  category: 'Produce',          name: 'Bananas',                      qty: '3' },
-  { id: 'p2',  category: 'Produce',          name: 'Avocados',                     qty: '2' },
-  { id: 'p3',  category: 'Produce',          name: 'Broccoli',                     qty: '2 heads' },
-  { id: 'p4',  category: 'Produce',          name: 'Baby spinach',                 qty: '5 oz bag' },
-  { id: 'p5',  category: 'Produce',          name: 'Mushrooms',                    qty: '8 oz' },
-  { id: 'p6',  category: 'Produce',          name: 'Asparagus',                    qty: '1 bunch' },
-  { id: 'p7',  category: 'Produce',          name: 'Romaine lettuce',              qty: '1 head' },
-  { id: 'p8',  category: 'Produce',          name: 'Mixed salad greens',           qty: '5 oz bag' },
-  { id: 'p9',  category: 'Produce',          name: 'Blueberries',                  qty: '1 pint' },
-  { id: 'p10', category: 'Produce',          name: 'Mixed berries',                qty: '10 oz' },
-  { id: 'p11', category: 'Produce',          name: 'Lemons',                       qty: '3' },
-  { id: 'p12', category: 'Produce',          name: 'Ginger root',                  qty: '1 knob' },
-  { id: 'p13', category: 'Produce',          name: 'Root vegetables (carrots, parsnips)', qty: '1 lb' },
-  { id: 'p14', category: 'Produce',          name: 'Seasonal vegetables (mixed)',   qty: '1 lb' },
-  { id: 'p15', category: 'Produce',          name: 'Fresh fruit (for smoothie bowl)', qty: 'assorted' },
-
-  // Proteins
-  { id: 'r1',  category: 'Proteins',         name: 'Chicken breast',               qty: '3 lbs' },
-  { id: 'r2',  category: 'Proteins',         name: 'Ground turkey',                qty: '2 lbs' },
-  { id: 'r3',  category: 'Proteins',         name: 'Salmon fillets',               qty: '3' },
-  { id: 'r4',  category: 'Proteins',         name: 'Albacore tuna (canned)',        qty: '2 cans' },
-  { id: 'r5',  category: 'Proteins',         name: 'Eggs',                         qty: '1 dozen' },
-  { id: 'r6',  category: 'Proteins',         name: 'Shrimp',                       qty: '1 lb' },
-  { id: 'r7',  category: 'Proteins',         name: 'Cod fillet',                   qty: '1' },
-  { id: 'r8',  category: 'Proteins',         name: 'Flank steak',                  qty: '1 lb' },
-  { id: 'r9',  category: 'Proteins',         name: 'Extra-lean ground beef',       qty: '1 lb' },
-  { id: 'r10', category: 'Proteins',         name: 'Pork tenderloin',              qty: '1' },
-  { id: 'r11', category: 'Proteins',         name: 'Acai packets (frozen)',         qty: '2 packets' },
-
-  // Dairy
-  { id: 'd1',  category: 'Dairy',            name: 'Greek yogurt, 2%',             qty: '32 oz' },
-  { id: 'd2',  category: 'Dairy',            name: 'Feta cheese',                  qty: '4 oz' },
-  { id: 'd3',  category: 'Dairy',            name: 'Heavy cream',                  qty: 'small carton' },
-
-  // Grains & Bread
-  { id: 'g1',  category: 'Grains & Bread',   name: 'Steel-cut oats',               qty: '1 lb' },
-  { id: 'g2',  category: 'Grains & Bread',   name: 'Rolled oats',                  qty: '1 lb' },
-  { id: 'g3',  category: 'Grains & Bread',   name: 'Granola',                      qty: '12 oz bag' },
-  { id: 'g4',  category: 'Grains & Bread',   name: 'Whole-wheat penne',            qty: '12 oz box' },
-  { id: 'g5',  category: 'Grains & Bread',   name: 'Jasmine rice',                 qty: '2 cups' },
-  { id: 'g6',  category: 'Grains & Bread',   name: 'Brown rice',                   qty: '2 cups' },
-  { id: 'g7',  category: 'Grains & Bread',   name: 'Quinoa',                       qty: '2 cups' },
-  { id: 'g8',  category: 'Grains & Bread',   name: 'Whole-wheat tortillas',        qty: '1 pack' },
-  { id: 'g9',  category: 'Grains & Bread',   name: 'Whole-grain bread',            qty: '1 loaf' },
-  { id: 'g10', category: 'Grains & Bread',   name: 'Chia seeds',                   qty: '4 oz' },
-
-  // Pantry
-  { id: 'n1',  category: 'Pantry',           name: 'Marinara sauce (jarred)',       qty: '24 oz jar' },
-  { id: 'n2',  category: 'Pantry',           name: 'Black beans (canned)',          qty: '1 can' },
-  { id: 'n3',  category: 'Pantry',           name: 'Bone broth',                   qty: '32 oz' },
-  { id: 'n4',  category: 'Pantry',           name: 'Soy sauce',                    qty: 'small bottle' },
-  { id: 'n5',  category: 'Pantry',           name: 'Salsa',                        qty: '16 oz jar' },
-  { id: 'n6',  category: 'Pantry',           name: 'Olive oil',                    qty: 'as needed' },
-  { id: 'n7',  category: 'Pantry',           name: 'Whey protein powder',           qty: '1 container' },
-  { id: 'n8',  category: 'Pantry',           name: 'Tikka masala spice blend',     qty: '2 oz' },
-  { id: 'n9',  category: 'Pantry',           name: 'Mixed dried herbs',            qty: 'as needed' },
-  { id: 'n10', category: 'Pantry',           name: 'Garlic',                       qty: '1 bulb' },
-  { id: 'n11', category: 'Pantry',           name: 'Caesar dressing (light)',      qty: '8 oz' },
-  { id: 'n12', category: 'Pantry',           name: 'Mustard',                      qty: 'as needed' },
-  { id: 'n13', category: 'Pantry',           name: 'Pickles',                      qty: '1 jar' },
-  { id: 'n14', category: 'Pantry',           name: 'Edamame (frozen)',              qty: '10 oz' },
-]
+const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:8000'
+const USER_KEY = 'user_id'
+const CHECKED_KEY = 'gastownmeals:grocery-checked'
 
 const CATEGORY_ICONS = {
-  'Produce':       '🥦',
-  'Proteins':      '🥩',
-  'Dairy':         '🥛',
-  'Grains & Bread':'🌾',
-  'Pantry':        '🫙',
+  produce: '🥦',
+  protein: '🥩',
+  dairy: '🥛',
+  grains: '🌾',
+  pantry: '🫙',
+  other: '🛒',
 }
 
-const CATEGORY_ORDER = ['Produce', 'Proteins', 'Dairy', 'Grains & Bread', 'Pantry']
+const CATEGORY_LABELS = {
+  produce: 'Produce',
+  protein: 'Proteins',
+  dairy: 'Dairy',
+  grains: 'Grains & Bread',
+  pantry: 'Pantry',
+  other: 'Other',
+}
+
+const CATEGORY_ORDER = ['produce', 'protein', 'dairy', 'grains', 'pantry', 'other']
 
 function groupByCategory(items) {
   const map = {}
   for (const item of items) {
-    if (!map[item.category]) map[item.category] = []
-    map[item.category].push(item)
+    const cat = item.category ?? 'other'
+    if (!map[cat]) map[cat] = []
+    map[cat].push(item)
   }
-  return CATEGORY_ORDER.map((cat) => ({ category: cat, items: map[cat] ?? [] })).filter((g) => g.items.length > 0)
+  return CATEGORY_ORDER
+    .map((cat) => ({ category: cat, items: map[cat] ?? [] }))
+    .filter((g) => g.items.length > 0)
 }
-
-const STORAGE_KEY = 'gastownmeals:grocery-checked'
 
 function loadChecked() {
   try {
-    return new Set(JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '[]'))
+    return new Set(JSON.parse(localStorage.getItem(CHECKED_KEY) ?? '[]'))
   } catch {
     return new Set()
   }
@@ -97,47 +47,87 @@ function loadChecked() {
 
 function saveChecked(set) {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify([...set]))
-  } catch {
-    // localStorage unavailable (private browsing, quota exceeded)
-  }
+    localStorage.setItem(CHECKED_KEY, JSON.stringify([...set]))
+  } catch {}
+}
+
+function formatQty(item) {
+  if (!item.quantity && !item.unit) return ''
+  if (!item.unit || item.unit === 'unit' || item.unit === 'units') return String(item.quantity)
+  return `${item.quantity} ${item.unit}`
 }
 
 export default function GroceryList() {
+  const navigate = useNavigate()
+  const userId = localStorage.getItem(USER_KEY)
+
+  const [items, setItems] = useState([])
+  const [weekLabel, setWeekLabel] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
   const [checked, setChecked] = useState(loadChecked)
 
   useEffect(() => {
     saveChecked(checked)
   }, [checked])
 
-  const toggle = (id) => {
+  useEffect(() => {
+    if (!userId) { navigate('/login', { replace: true }); return }
+
+    async function load() {
+      const plansRes = await fetch(`${API_BASE}/api/users/${userId}/meal-plans`)
+      if (!plansRes.ok) throw new Error('Could not load meal plans')
+      const plans = await plansRes.json()
+      if (!plans.length) { setLoading(false); return }
+
+      const plan = plans[0]
+
+      // Build week label from week_start
+      if (plan.week_start) {
+        const start = new Date(plan.week_start + 'T00:00:00')
+        const end = new Date(start)
+        end.setDate(end.getDate() + 6)
+        const fmt = (d) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+        setWeekLabel(`${fmt(start)} – ${fmt(end)}, ${start.getFullYear()}`)
+      }
+
+      const groceryRes = await fetch(`${API_BASE}/api/meal-plans/${plan.id}/grocery-list`)
+      if (!groceryRes.ok) throw new Error('Could not load grocery list')
+      const grocery = await groceryRes.json()
+      setItems(grocery.items ?? [])
+    }
+
+    load()
+      .catch((err) => setError(err.message))
+      .finally(() => setLoading(false))
+  }, [userId, navigate])
+
+  const toggle = (key) => {
     setChecked((prev) => {
       const next = new Set(prev)
-      next.has(id) ? next.delete(id) : next.add(id)
+      next.has(key) ? next.delete(key) : next.add(key)
       return next
     })
   }
 
-  const toggleCategory = (items) => {
-    const allChecked = items.every((i) => checked.has(i.id))
+  const toggleCategory = (catItems) => {
+    const keys = catItems.map((i) => i.name + i.unit)
+    const allChecked = keys.every((k) => checked.has(k))
     setChecked((prev) => {
       const next = new Set(prev)
-      for (const item of items) {
-        allChecked ? next.delete(item.id) : next.add(item.id)
-      }
+      for (const k of keys) allChecked ? next.delete(k) : next.add(k)
       return next
     })
   }
 
   const clearAll = () => setChecked(new Set())
 
-  const totalCount = GROCERY_ITEMS.length
-  const checkedCount = GROCERY_ITEMS.filter((i) => checked.has(i.id)).length
-  const groups = groupByCategory(GROCERY_ITEMS)
+  const groups = groupByCategory(items)
+  const totalCount = items.length
+  const checkedCount = items.filter((i) => checked.has(i.name + i.unit)).length
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-8 sm:px-6">
-      {/* Back link */}
       <Link
         to="/plan"
         className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-900 transition-colors mb-6"
@@ -148,11 +138,10 @@ export default function GroceryList() {
         Back to meal plan
       </Link>
 
-      {/* Header */}
       <div className="flex items-start justify-between mb-6 print:mb-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl">Grocery List</h1>
-          <p className="text-sm text-gray-500 mt-1">Week of Apr 21 – 27, 2026</p>
+          {weekLabel && <p className="text-sm text-gray-500 mt-1">Week of {weekLabel}</p>}
         </div>
         <div className="flex items-center gap-2 print:hidden">
           {checkedCount > 0 && (
@@ -175,88 +164,107 @@ export default function GroceryList() {
         </div>
       </div>
 
-      {/* Progress bar */}
-      <div className="mb-8 print:hidden">
-        <div className="flex items-center justify-between mb-1.5">
-          <span className="text-sm text-gray-500">
-            {checkedCount === totalCount
-              ? 'All items gotten!'
-              : `${checkedCount} of ${totalCount} items gotten`}
-          </span>
-          <span className="text-sm font-semibold text-gray-900">
-            {Math.round((checkedCount / totalCount) * 100)}%
-          </span>
+      {loading && (
+        <div className="flex items-center justify-center py-24">
+          <svg className="w-8 h-8 text-green-400 animate-spin" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+          </svg>
         </div>
-        <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-          <div
-            className="h-full bg-green-500 rounded-full transition-all duration-300"
-            style={{ width: `${(checkedCount / totalCount) * 100}%` }}
-          />
+      )}
+
+      {error && (
+        <div className="mb-4 px-4 py-3 rounded-lg bg-red-50 text-sm text-red-700 border border-red-100">
+          {error}
         </div>
-      </div>
+      )}
 
-      {/* Category groups */}
-      <div className="space-y-6">
-        {groups.map(({ category, items }) => {
-          const catChecked = items.filter((i) => checked.has(i.id)).length
-          const allCatChecked = catChecked === items.length
+      {!loading && !error && items.length === 0 && (
+        <div className="flex flex-col items-center justify-center py-24 text-center">
+          <p className="text-gray-500 mb-4">No grocery list yet — generate a meal plan first.</p>
+          <Link to="/plan" className="text-sm text-green-600 font-semibold hover:underline">
+            Go to Meal Plan →
+          </Link>
+        </div>
+      )}
 
-          return (
-            <div key={category} className="rounded-xl border border-gray-200 bg-white overflow-hidden shadow-sm">
-              {/* Category header */}
-              <button
-                onClick={() => toggleCategory(items)}
-                className="w-full flex items-center justify-between px-4 py-3 bg-gray-50 hover:bg-gray-100 transition-colors text-left print:bg-white print:pointer-events-none"
-              >
-                <div className="flex items-center gap-2">
-                  <span className="text-lg" aria-hidden="true">{CATEGORY_ICONS[category]}</span>
-                  <span className="font-semibold text-gray-900 text-sm">{category}</span>
-                  <span className="text-xs text-gray-400 font-medium">
-                    {catChecked}/{items.length}
-                  </span>
-                </div>
-                <span className={`text-xs font-medium print:hidden ${allCatChecked ? 'text-green-600' : 'text-gray-400'}`}>
-                  {allCatChecked ? 'All gotten' : 'Mark all'}
-                </span>
-              </button>
-
-              {/* Items */}
-              <ul className="divide-y divide-gray-100">
-                {items.map((item) => {
-                  const isChecked = checked.has(item.id)
-                  return (
-                    <li key={item.id}>
-                      <label className="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-gray-50 transition-colors print:hover:bg-white">
-                        <input
-                          type="checkbox"
-                          checked={isChecked}
-                          onChange={() => toggle(item.id)}
-                          className="h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500 focus:ring-offset-0 flex-shrink-0 print:hidden"
-                        />
-                        {/* Print-only checkbox circle */}
-                        <span className="hidden print:inline-flex h-4 w-4 rounded border border-gray-400 flex-shrink-0" />
-                        <span className={`flex-1 text-sm ${isChecked ? 'line-through text-gray-400' : 'text-gray-800'}`}>
-                          {item.name}
-                        </span>
-                        <span className={`text-xs flex-shrink-0 ${isChecked ? 'text-gray-300' : 'text-gray-400'}`}>
-                          {item.qty}
-                        </span>
-                      </label>
-                    </li>
-                  )
-                })}
-              </ul>
+      {!loading && items.length > 0 && (
+        <>
+          <div className="mb-8 print:hidden">
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="text-sm text-gray-500">
+                {checkedCount === totalCount
+                  ? 'All items gotten!'
+                  : `${checkedCount} of ${totalCount} items gotten`}
+              </span>
+              <span className="text-sm font-semibold text-gray-900">
+                {Math.round((checkedCount / totalCount) * 100)}%
+              </span>
             </div>
-          )
-        })}
-      </div>
+            <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-green-500 rounded-full transition-all duration-300"
+                style={{ width: `${(checkedCount / totalCount) * 100}%` }}
+              />
+            </div>
+          </div>
 
-      {/* Footer */}
+          <div className="space-y-6">
+            {groups.map(({ category, items: catItems }) => {
+              const catKeys = catItems.map((i) => i.name + i.unit)
+              const catChecked = catKeys.filter((k) => checked.has(k)).length
+              const allCatChecked = catChecked === catItems.length
+
+              return (
+                <div key={category} className="rounded-xl border border-gray-200 bg-white overflow-hidden shadow-sm">
+                  <button
+                    onClick={() => toggleCategory(catItems)}
+                    className="w-full flex items-center justify-between px-4 py-3 bg-gray-50 hover:bg-gray-100 transition-colors text-left print:bg-white print:pointer-events-none"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="text-lg" aria-hidden="true">{CATEGORY_ICONS[category]}</span>
+                      <span className="font-semibold text-gray-900 text-sm">{CATEGORY_LABELS[category]}</span>
+                      <span className="text-xs text-gray-400 font-medium">{catChecked}/{catItems.length}</span>
+                    </div>
+                    <span className={`text-xs font-medium print:hidden ${allCatChecked ? 'text-green-600' : 'text-gray-400'}`}>
+                      {allCatChecked ? 'All gotten' : 'Mark all'}
+                    </span>
+                  </button>
+
+                  <ul className="divide-y divide-gray-100">
+                    {catItems.map((item) => {
+                      const key = item.name + item.unit
+                      const isChecked = checked.has(key)
+                      return (
+                        <li key={key}>
+                          <label className="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-gray-50 transition-colors print:hover:bg-white">
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={() => toggle(key)}
+                              className="h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500 focus:ring-offset-0 flex-shrink-0 print:hidden"
+                            />
+                            <span className="hidden print:inline-flex h-4 w-4 rounded border border-gray-400 flex-shrink-0" />
+                            <span className={`flex-1 text-sm ${isChecked ? 'line-through text-gray-400' : 'text-gray-800'}`}>
+                              {item.name}
+                            </span>
+                            <span className={`text-xs flex-shrink-0 ${isChecked ? 'text-gray-300' : 'text-gray-400'}`}>
+                              {formatQty(item)}
+                            </span>
+                          </label>
+                        </li>
+                      )
+                    })}
+                  </ul>
+                </div>
+              )
+            })}
+          </div>
+        </>
+      )}
+
       <div className="mt-8 text-center print:hidden">
-        <Link
-          to="/plan"
-          className="text-sm text-gray-500 hover:text-gray-900 transition-colors"
-        >
+        <Link to="/plan" className="text-sm text-gray-500 hover:text-gray-900 transition-colors">
           ← Back to meal plan
         </Link>
       </div>

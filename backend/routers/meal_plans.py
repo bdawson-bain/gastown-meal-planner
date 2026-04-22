@@ -202,7 +202,7 @@ def create_meal_plan(
             budget=float(prefs.budget) if prefs.budget else None,
             cook_time_minutes=prefs.cook_time_minutes,
         )
-    except ValueError as exc:
+    except (MealGenerationError, ValueError) as exc:
         raise HTTPException(status_code=502, detail=str(exc))
 
     plan = MealPlan(user_id=body.user_id, week_start=week_start)
