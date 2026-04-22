@@ -13,7 +13,7 @@ export default function Home() {
   return (
     <div className="min-h-[82vh] flex flex-col items-center justify-center px-6 py-20 text-center">
       <div className="inline-flex items-center gap-2 bg-green-50 text-green-700 text-xs font-semibold px-4 py-1.5 rounded-full mb-8 tracking-widest uppercase">
-        AI-powered meal planning
+        Calibrated to your body and goals
       </div>
       <h1 className="text-5xl sm:text-6xl lg:text-7xl font-extrabold tracking-tight text-gray-900 mb-6 leading-[1.08]">
         Eat well.<br />
