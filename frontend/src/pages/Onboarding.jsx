@@ -149,7 +149,14 @@ export default function Onboarding() {
   const canAdvance = () => {
     if (step === 0) return form.household_size >= 1
     if (step === 3) return form.budget !== '' && Number(form.budget) > 0
-    if (step === 5) return true // About You — all optional
+    if (step === 5) {
+      const ageOk = Number(form.age) > 0
+      const weightOk = Number(form.weight) > 0
+      const heightOk = form.height_unit === 'imperial'
+        ? parseInt(form.height_ft, 10) > 0
+        : parseInt(form.height_cm_input, 10) > 0
+      return ageOk && weightOk && heightOk
+    }
     if (step === 6) return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())
     if (step === 7) return form.openai_api_key.trim().length > 0
     return true
@@ -215,7 +222,6 @@ export default function Onboarding() {
           budget: Number(form.budget),
           cook_time_minutes: form.cook_time_minutes,
           openai_api_key: form.openai_api_key.trim() || null,
-          ...buildBioPayload(),
         }),
       })
       if (!res.ok) {
@@ -223,6 +229,20 @@ export default function Onboarding() {
         throw new Error(detail?.detail ?? `Server error ${res.status}`)
       }
       const data = await res.json()
+
+      const bio = buildBioPayload()
+      if (Object.keys(bio).length > 0) {
+        const bioRes = await fetch(`${API_BASE}/api/users/${data.id}/preferences`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(bio),
+        })
+        if (!bioRes.ok) {
+          const detail = await bioRes.json().catch(() => ({}))
+          throw new Error(detail?.detail ?? `Server error ${bioRes.status}`)
+        }
+      }
+
       localStorage.setItem('user_id', data.id)
       localStorage.setItem('email', data.email ?? form.email.trim())
       navigate('/')
@@ -309,11 +329,15 @@ export default function Onboarding() {
               <p className="text-gray-500 text-sm mb-6">
                 Approximate amount you spend on groceries each week.
               </p>
+              <label htmlFor="budget-input" className="block text-sm font-semibold text-gray-700 mb-1.5">
+                Weekly grocery budget
+              </label>
               <div className="relative">
                 <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-semibold">
                   $
                 </span>
                 <input
+                  id="budget-input"
                   type="number"
                   min="1"
                   step="1"
