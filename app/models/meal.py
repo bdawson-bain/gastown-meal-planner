@@ -1,7 +1,8 @@
 import uuid
+from decimal import Decimal
 from typing import TYPE_CHECKING, Any, Optional
 
-from sqlalchemy import ForeignKey, String, Text
+from sqlalchemy import ForeignKey, Integer, Numeric, String, Text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -31,5 +32,10 @@ class Meal(Base):
     description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     # List of {name, quantity, unit} objects
     ingredients_json: Mapped[Optional[Any]] = mapped_column(JSONB, nullable=True)
+    # Per-meal nutrition (populated by v2 generation)
+    calories: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    protein_g: Mapped[Optional[Decimal]] = mapped_column(Numeric(5, 1), nullable=True)
+    carbs_g: Mapped[Optional[Decimal]] = mapped_column(Numeric(5, 1), nullable=True)
+    fat_g: Mapped[Optional[Decimal]] = mapped_column(Numeric(5, 1), nullable=True)
 
     meal_plan: Mapped["MealPlan"] = relationship(back_populates="meals")

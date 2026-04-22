@@ -46,6 +46,10 @@ class MealOut(BaseModel):
     name: str
     description: Optional[str]
     ingredients_json: Optional[Any]
+    calories: Optional[int] = None
+    protein_g: Optional[float] = None
+    carbs_g: Optional[float] = None
+    fat_g: Optional[float] = None
 
 
 class MealPlanOut(BaseModel):

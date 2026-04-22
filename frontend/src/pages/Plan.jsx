@@ -65,6 +65,58 @@ function SwapIcon({ spinning }) {
   )
 }
 
+function MacroStrip({ meal }) {
+  if (meal.calories == null) return null
+  return (
+    <div className="flex items-center gap-1 mt-2 flex-wrap">
+      <span className="inline-flex items-center gap-0.5 text-[10px] font-medium text-orange-700 bg-orange-50 px-1.5 py-0.5 rounded-full">
+        🔥 {meal.calories.toLocaleString()} cal
+      </span>
+      {meal.protein_g != null && (
+        <span className="inline-flex items-center gap-0.5 text-[10px] font-medium text-rose-700 bg-rose-50 px-1.5 py-0.5 rounded-full">
+          🥩 {Math.round(meal.protein_g)}g P
+        </span>
+      )}
+      {meal.carbs_g != null && (
+        <span className="inline-flex items-center gap-0.5 text-[10px] font-medium text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded-full">
+          🍚 {Math.round(meal.carbs_g)}g C
+        </span>
+      )}
+      {meal.fat_g != null && (
+        <span className="inline-flex items-center gap-0.5 text-[10px] font-medium text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded-full">
+          🫒 {Math.round(meal.fat_g)}g F
+        </span>
+      )}
+    </div>
+  )
+}
+
+function getDayTotals(mealMap, day) {
+  const meals = SLOT_TYPES.map((slot) => mealMap[`${day}-${slot}`])
+  if (meals.some((m) => !m || m.calories == null)) return null
+  return meals.reduce(
+    (acc, m) => ({
+      calories: acc.calories + m.calories,
+      protein_g: acc.protein_g + (m.protein_g ?? 0),
+      carbs_g: acc.carbs_g + (m.carbs_g ?? 0),
+      fat_g: acc.fat_g + (m.fat_g ?? 0),
+    }),
+    { calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0 }
+  )
+}
+
+function getWeeklyAvg(mealMap) {
+  const dayTotals = DAYS_OF_WEEK.map((day) => getDayTotals(mealMap, day)).filter(Boolean)
+  if (!dayTotals.length) return null
+  const n = dayTotals.length
+  return {
+    calories: Math.round(dayTotals.reduce((s, d) => s + d.calories, 0) / n),
+    protein_g: dayTotals.reduce((s, d) => s + d.protein_g, 0) / n,
+    carbs_g: dayTotals.reduce((s, d) => s + d.carbs_g, 0) / n,
+    fat_g: dayTotals.reduce((s, d) => s + d.fat_g, 0) / n,
+  }
+}
+
 function MealCard({ meal, onSwap, swapping }) {
   const [feedback, setFeedback] = useState(null)
 
@@ -95,6 +147,7 @@ function MealCard({ meal, onSwap, swapping }) {
     <div className="group relative rounded-lg border border-gray-100 bg-white p-3 h-full shadow-sm min-h-[72px] flex flex-col">
       <p className="text-sm font-medium text-gray-900 leading-snug pr-6">{meal.name}</p>
       <p className="mt-1 text-xs text-gray-500 line-clamp-2 flex-1">{meal.description}</p>
+      <MacroStrip meal={meal} />
       <div className="flex gap-0.5 mt-1.5 justify-end">
         <button
           onClick={() => handleFeedback('liked')}
@@ -224,6 +277,8 @@ export default function Plan() {
     date: plan?.week_start ? getDayDate(plan.week_start, i) : '',
   }))
 
+  const weeklyAvg = getWeeklyAvg(mealMap)
+
   return (
     <div className="max-w-6xl mx-auto px-6 py-8">
       {/* Header */}
@@ -281,31 +336,44 @@ export default function Plan() {
         <>
           {/* Mobile view */}
           <div className="space-y-6 lg:hidden">
-            {days.map(({ key: day, label, date }) => (
-              <div key={day}>
-                <div className="flex items-baseline gap-2 mb-2">
-                  <span className="text-base font-semibold text-gray-900">{label}</span>
-                  {date && <span className="text-xs text-gray-400">{date}</span>}
+            {days.map(({ key: day, label, date }) => {
+              const dayTotals = getDayTotals(mealMap, day)
+              return (
+                <div key={day}>
+                  <div className="flex items-baseline gap-2 mb-2">
+                    <span className="text-base font-semibold text-gray-900">{label}</span>
+                    {date && <span className="text-xs text-gray-400">{date}</span>}
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    {SLOT_TYPES.map((slot) => {
+                      const key = `${day}-${slot}`
+                      return (
+                        <div key={slot}>
+                          <p className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-1">
+                            {SLOT_LABELS[slot]}
+                          </p>
+                          <MealCard
+                            meal={mealMap[key] ?? null}
+                            onSwap={() => handleSwap(day, slot)}
+                            swapping={swapping.has(key)}
+                          />
+                        </div>
+                      )
+                    })}
+                  </div>
+                  {dayTotals && (
+                    <p className="mt-2 text-xs text-gray-400">
+                      Day total: {dayTotals.calories.toLocaleString()} cal / {Math.round(dayTotals.protein_g)}g P / {Math.round(dayTotals.carbs_g)}g C / {Math.round(dayTotals.fat_g)}g F
+                    </p>
+                  )}
                 </div>
-                <div className="grid grid-cols-3 gap-2">
-                  {SLOT_TYPES.map((slot) => {
-                    const key = `${day}-${slot}`
-                    return (
-                      <div key={slot}>
-                        <p className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-1">
-                          {SLOT_LABELS[slot]}
-                        </p>
-                        <MealCard
-                          meal={mealMap[key] ?? null}
-                          onSwap={() => handleSwap(day, slot)}
-                          swapping={swapping.has(key)}
-                        />
-                      </div>
-                    )
-                  })}
-                </div>
-              </div>
-            ))}
+              )
+            })}
+            {weeklyAvg && (
+              <p className="text-xs text-gray-400 border-t border-gray-100 pt-4">
+                Weekly avg: {weeklyAvg.calories.toLocaleString()} cal/day — {Math.round(weeklyAvg.protein_g)}g P / {Math.round(weeklyAvg.carbs_g)}g C / {Math.round(weeklyAvg.fat_g)}g F
+              </p>
+            )}
           </div>
 
           {/* Desktop view */}
@@ -341,6 +409,36 @@ export default function Plan() {
                   })}
                 </div>
               ))}
+
+              {days.some(({ key: day }) => getDayTotals(mealMap, day) !== null) && (
+                <div className="grid grid-cols-[80px_repeat(7,1fr)] gap-2 mt-1 border-t border-gray-100 pt-2">
+                  <div className="flex items-center">
+                    <span className="text-xs font-medium text-gray-400 uppercase tracking-wide">Total</span>
+                  </div>
+                  {days.map(({ key: day }) => {
+                    const totals = getDayTotals(mealMap, day)
+                    return (
+                      <div key={day} className="text-center px-1">
+                        {totals ? (
+                          <p className="text-[10px] text-gray-400 leading-snug">
+                            {totals.calories.toLocaleString()} cal
+                            <br />
+                            {Math.round(totals.protein_g)}P / {Math.round(totals.carbs_g)}C / {Math.round(totals.fat_g)}F
+                          </p>
+                        ) : (
+                          <span className="text-[10px] text-gray-200">—</span>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+
+              {weeklyAvg && (
+                <p className="mt-3 text-xs text-gray-400 text-right">
+                  Weekly avg: {weeklyAvg.calories.toLocaleString()} cal/day — {Math.round(weeklyAvg.protein_g)}g P / {Math.round(weeklyAvg.carbs_g)}g C / {Math.round(weeklyAvg.fat_g)}g F
+                </p>
+              )}
             </div>
           </div>
         </>
