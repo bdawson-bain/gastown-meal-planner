@@ -1,12 +1,14 @@
 import uuid
+from collections import defaultdict
 from datetime import date, datetime, timedelta
-from typing import Any, List, Optional
+from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy.orm import Session
 
 from app.database import get_db
+from app.models.grocery_list import GroceryList
 from app.models.meal import Meal
 from app.models.meal_plan import MealPlan
 from app.models.user import User
@@ -58,6 +60,109 @@ class MealPlanSummary(BaseModel):
     user_id: uuid.UUID
     week_start: date
     created_at: datetime
+
+
+class GroceryItem(BaseModel):
+    name: str
+    quantity: float
+    unit: str
+    category: str
+
+
+class GroceryListOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    meal_plan_id: uuid.UUID
+    items: List[GroceryItem]
+
+
+# ---------------------------------------------------------------------------
+# Grocery list helpers
+# ---------------------------------------------------------------------------
+
+_PRODUCE_KEYWORDS = {
+    "apple", "banana", "berry", "berries", "broccoli", "carrot", "celery",
+    "garlic", "ginger", "herb", "kale", "lemon", "lettuce", "lime", "mango",
+    "mushroom", "onion", "orange", "pepper", "potato", "spinach", "tomato",
+    "zucchini", "cucumber", "avocado", "corn", "pea", "bean", "squash",
+    "eggplant", "asparagus", "cabbage", "cauliflower", "radish", "beet",
+}
+_PROTEIN_KEYWORDS = {
+    "beef", "chicken", "turkey", "pork", "lamb", "salmon", "tuna", "shrimp",
+    "egg", "tofu", "tempeh", "lentil", "chickpea", "edamame", "fish",
+    "bacon", "sausage", "ham", "steak",
+}
+_DAIRY_KEYWORDS = {
+    "milk", "cheese", "butter", "cream", "yogurt", "ghee", "parmesan",
+    "mozzarella", "cheddar", "feta", "ricotta",
+}
+_GRAIN_KEYWORDS = {
+    "flour", "bread", "pasta", "rice", "oat", "quinoa", "barley", "noodle",
+    "tortilla", "cracker", "cereal", "couscous", "polenta",
+}
+_PANTRY_KEYWORDS = {
+    "oil", "salt", "pepper", "sugar", "honey", "sauce", "vinegar", "soy",
+    "stock", "broth", "spice", "seasoning", "cumin", "paprika", "cinnamon",
+    "oregano", "basil", "thyme", "rosemary", "bay", "mustard", "ketchup",
+    "mayo", "sriracha", "paste", "extract", "baking", "yeast",
+}
+
+
+def _categorise(name: str) -> str:
+    lower = name.lower()
+    for keyword in _PRODUCE_KEYWORDS:
+        if keyword in lower:
+            return "produce"
+    for keyword in _PROTEIN_KEYWORDS:
+        if keyword in lower:
+            return "protein"
+    for keyword in _DAIRY_KEYWORDS:
+        if keyword in lower:
+            return "dairy"
+    for keyword in _GRAIN_KEYWORDS:
+        if keyword in lower:
+            return "grains"
+    for keyword in _PANTRY_KEYWORDS:
+        if keyword in lower:
+            return "pantry"
+    return "other"
+
+
+def _consolidate_ingredients(meals: list) -> List[Dict[str, Any]]:
+    """Merge ingredient lists from all meals, summing quantities for same (name, unit) pairs."""
+    totals: Dict[tuple, Dict[str, Any]] = defaultdict(lambda: {"quantity": 0.0})
+    for meal in meals:
+        for ing in (meal.ingredients_json or []):
+            key = (ing["name"].strip().lower(), ing.get("unit", "").strip().lower())
+            entry = totals[key]
+            entry["name"] = ing["name"].strip()
+            entry["unit"] = ing.get("unit", "")
+            entry["quantity"] = entry["quantity"] + float(ing.get("quantity", 0))
+            entry["category"] = _categorise(ing["name"])
+    return [
+        {
+            "name": v["name"],
+            "quantity": v["quantity"],
+            "unit": v["unit"],
+            "category": v["category"],
+        }
+        for v in totals.values()
+    ]
+
+
+def _generate_and_store(plan: MealPlan, db: Session) -> GroceryList:
+    items = _consolidate_ingredients(plan.meals)
+    grocery = GroceryList(meal_plan_id=plan.id, items_json=items)
+    db.add(grocery)
+    db.commit()
+    db.refresh(grocery)
+    return grocery
+
+
+def _grocery_list_to_out(grocery: GroceryList) -> GroceryListOut:
+    items = [GroceryItem(**item) for item in (grocery.items_json or [])]
+    return GroceryListOut(id=grocery.id, meal_plan_id=grocery.meal_plan_id, items=items)
 
 
 # ---------------------------------------------------------------------------
@@ -140,3 +245,30 @@ def list_user_meal_plans(
         .all()
     )
     return plans
+
+
+@router.get("/meal-plans/{plan_id}/grocery-list", response_model=GroceryListOut)
+def get_grocery_list(plan_id: uuid.UUID, db: Session = Depends(get_db)) -> GroceryListOut:
+    plan = db.get(MealPlan, plan_id)
+    if plan is None:
+        raise HTTPException(status_code=404, detail="Meal plan not found")
+
+    if plan.grocery_lists:
+        return _grocery_list_to_out(plan.grocery_lists[0])
+
+    grocery = _generate_and_store(plan, db)
+    return _grocery_list_to_out(grocery)
+
+
+@router.post("/meal-plans/{plan_id}/grocery-list/regenerate", response_model=GroceryListOut)
+def regenerate_grocery_list(plan_id: uuid.UUID, db: Session = Depends(get_db)) -> GroceryListOut:
+    plan = db.get(MealPlan, plan_id)
+    if plan is None:
+        raise HTTPException(status_code=404, detail="Meal plan not found")
+
+    for existing in plan.grocery_lists:
+        db.delete(existing)
+    db.flush()
+
+    grocery = _generate_and_store(plan, db)
+    return _grocery_list_to_out(grocery)
