@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 
 const DAYS_OF_WEEK = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
 const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
@@ -187,6 +187,8 @@ function MealCard({ meal, onSwap, swapping }) {
 
 export default function Plan() {
   const userId = localStorage.getItem(USER_KEY)
+  const [searchParams] = useSearchParams()
+  const planIdParam = searchParams.get('plan_id')
 
   const [plan, setPlan] = useState(null)
   const [mealMap, setMealMap] = useState({})
@@ -195,20 +197,25 @@ export default function Plan() {
   const [swapping, setSwapping] = useState(new Set())
   const [error, setError] = useState(null)
 
-  const loadLatestPlan = useCallback(async (uid) => {
+  const loadPlan = useCallback(async (uid) => {
+    if (planIdParam) {
+      const res = await fetch(`${API_BASE}/api/meal-plans/${planIdParam}`)
+      if (!res.ok) throw new Error('Failed to load meal plan')
+      return res.json()
+    }
     const plansRes = await fetch(`${API_BASE}/api/users/${uid}/meal-plans`)
     if (!plansRes.ok) throw new Error('Failed to load meal plans')
     const plans = await plansRes.json()
     if (!plans.length) return null
-
-    const planRes = await fetch(`${API_BASE}/api/meal-plans/${plans[0].id}`)
+    const active = plans.find((p) => p.is_active) ?? plans[0]
+    const planRes = await fetch(`${API_BASE}/api/meal-plans/${active.id}`)
     if (!planRes.ok) throw new Error('Failed to load meal plan')
     return planRes.json()
-  }, [])
+  }, [planIdParam])
 
   useEffect(() => {
     if (!userId) return
-    loadLatestPlan(userId)
+    loadPlan(userId)
       .then((p) => {
         if (p) {
           setPlan(p)
@@ -217,7 +224,7 @@ export default function Plan() {
       })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false))
-  }, [userId, loadLatestPlan])
+  }, [userId, loadPlan])
 
   const handleGenerate = async () => {
     if (!userId) return
@@ -284,10 +291,16 @@ export default function Plan() {
       {/* Header */}
       <div className="flex flex-col gap-4 mb-6 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Meal Plan</h1>
+          <h1 className="text-3xl font-bold">{plan?.name ?? 'Meal Plan'}</h1>
           {weekLabel && <p className="text-gray-500 text-sm mt-1">Week of {weekLabel}</p>}
         </div>
         <div className="flex items-center gap-3 flex-shrink-0">
+          <Link
+            to="/plans"
+            className="px-4 py-2 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+          >
+            My Plans
+          </Link>
           {plan && (
             <Link
               to="/grocery-list"

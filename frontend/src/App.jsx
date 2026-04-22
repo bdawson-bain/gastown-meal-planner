@@ -5,6 +5,7 @@ import Home from './pages/Home'
 import Login from './pages/Login'
 import Onboarding from './pages/Onboarding'
 import Plan from './pages/Plan'
+import Plans from './pages/Plans'
 import GroceryList from './pages/GroceryList'
 
 export default function App() {
@@ -19,6 +20,14 @@ export default function App() {
           element={
             <ProtectedRoute>
               <Plan />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="plans"
+          element={
+            <ProtectedRoute>
+              <Plans />
             </ProtectedRoute>
           }
         />

@@ -59,6 +59,8 @@ class MealPlanOut(BaseModel):
     user_id: uuid.UUID
     week_start: date
     created_at: datetime
+    name: Optional[str] = None
+    is_active: bool = True
     meals: List[MealOut]
 
 

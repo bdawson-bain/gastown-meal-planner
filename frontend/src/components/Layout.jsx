@@ -4,6 +4,7 @@ const guestLinks = [
   { to: '/onboarding', label: 'Get Started' },
 ]
 const authLinks = [
+  { to: '/plans', label: 'My Plans' },
   { to: '/plan', label: 'Meal Plan' },
   { to: '/grocery-list', label: 'Grocery List' },
 ]
