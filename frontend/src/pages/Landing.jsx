@@ -67,66 +67,132 @@ export default function Landing() {
 
   return (
     <div>
-      {/* Hero */}
+      {/* Editorial Hero */}
       <section
-        className="relative min-h-screen flex flex-col items-center justify-center text-center px-6 overflow-hidden"
+        className="relative min-h-screen flex items-end overflow-hidden"
         style={{
           backgroundImage:
-            'url(https://images.unsplash.com/photo-1490645935967-10de6ba17061?auto=format&fit=crop&w=1800&q=75)',
+            'url(https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=2000&q=85)',
           backgroundSize: 'cover',
-          backgroundPosition: 'center',
+          backgroundPosition: 'center 45%',
         }}
       >
-        <div className="absolute inset-0 bg-black/40" />
+        {/* Cinematic gradient: heavy at bottom, breathes at top */}
+        <div
+          className="absolute inset-0"
+          style={{
+            background: [
+              'linear-gradient(to top, rgba(10,18,12,0.96) 0%, rgba(10,18,12,0.60) 40%, rgba(10,18,12,0.18) 70%, rgba(10,18,12,0.05) 100%)',
+              'linear-gradient(to right, rgba(10,18,12,0.50) 0%, rgba(10,18,12,0) 55%)',
+            ].join(', '),
+          }}
+        />
 
-        <div className="relative z-10 max-w-3xl mx-auto flex flex-col items-center gap-6">
-          <MotionH1
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.85, ease: 'easeOut' }}
-            className="font-display font-semibold leading-tight"
-            style={{ fontSize: 'clamp(3rem, 8vw, 5.5rem)', color: '#FAF9F6' }}
-          >
-            Eat to your goals.<br />Every week.
-          </MotionH1>
-
-          <MotionP
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.85, delay: 0.2, ease: 'easeOut' }}
-            className="text-xl sm:text-2xl max-w-xl leading-relaxed"
-            style={{ color: 'rgba(250,249,246,0.82)' }}
-          >
-            AI-generated meal plans calibrated to your body — delivered in under 60 seconds.
-          </MotionP>
-
-          <MotionDiv
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.85, delay: 0.4, ease: 'easeOut' }}
-          >
-            <Link
-              to="/onboarding"
-              className="inline-flex items-center gap-2 font-semibold text-lg px-10 py-4 rounded-full transition-transform duration-200 hover:-translate-y-0.5 active:translate-y-0"
-              style={{ backgroundColor: '#D4A853', color: '#1B4332' }}
+        {/* Editorial text block: bottom-left anchored */}
+        <div className="relative z-10 w-full max-w-6xl mx-auto px-6 sm:px-10 pb-16 md:pb-24">
+          <div className="max-w-xl">
+            {/* Eyebrow */}
+            <MotionDiv
+              initial={{ opacity: 0, x: -16 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.7, ease: 'easeOut' }}
+              className="flex items-center gap-3 mb-8"
             >
-              Build my plan — free
-            </Link>
-          </MotionDiv>
+              <span
+                className="block h-px flex-shrink-0"
+                style={{ width: '2.5rem', backgroundColor: '#D4A853' }}
+              />
+              <span
+                className="text-xs font-semibold uppercase"
+                style={{ color: '#D4A853', letterSpacing: '0.18em' }}
+              >
+                AI Meal Planning
+              </span>
+            </MotionDiv>
+
+            {/* Display headline */}
+            <MotionH1
+              initial={{ opacity: 0, y: 32 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.9, delay: 0.12, ease: 'easeOut' }}
+              className="font-display font-semibold leading-none mb-8"
+              style={{
+                fontSize: 'clamp(4rem, 9.5vw, 7.75rem)',
+                color: '#FAF9F6',
+                letterSpacing: '-0.025em',
+              }}
+            >
+              Eat to your<br />goals.<br />
+              <span style={{ color: '#D4A853' }}>Every week.</span>
+            </MotionH1>
+
+            {/* Subtext with vertical accent rule */}
+            <MotionDiv
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8, delay: 0.32, ease: 'easeOut' }}
+              className="flex items-start gap-5 mb-12"
+            >
+              <span
+                className="block w-px flex-shrink-0 mt-1"
+                style={{ backgroundColor: '#D4A853', height: '3.5rem' }}
+              />
+              <p
+                className="text-lg sm:text-xl leading-relaxed"
+                style={{ color: 'rgba(250,249,246,0.78)' }}
+              >
+                AI-generated meal plans calibrated to your body — delivered in under 60 seconds.
+              </p>
+            </MotionDiv>
+
+            {/* CTA row */}
+            <MotionDiv
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8, delay: 0.52, ease: 'easeOut' }}
+              className="flex items-center gap-6 flex-wrap"
+            >
+              <Link
+                to="/onboarding"
+                className="inline-flex items-center gap-2 font-semibold text-base px-9 py-4 rounded-full transition-transform duration-200 hover:-translate-y-0.5 active:translate-y-0"
+                style={{ backgroundColor: '#D4A853', color: '#1B4332' }}
+              >
+                Build my plan — free
+              </Link>
+              <span
+                className="text-sm"
+                style={{ color: 'rgba(250,249,246,0.45)' }}
+              >
+                Takes 2 minutes
+              </span>
+            </MotionDiv>
+          </div>
         </div>
 
+        {/* Editorial scroll indicator: right-edge, vertical text */}
         <MotionDiv
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ delay: 1.3, duration: 0.6 }}
-          className="absolute bottom-10 left-1/2 -translate-x-1/2 z-10"
+          transition={{ delay: 1.4, duration: 0.6 }}
+          className="absolute bottom-10 right-8 z-10 flex flex-col items-center gap-3"
         >
+          <span
+            className="text-xs font-medium uppercase"
+            style={{
+              color: 'rgba(250,249,246,0.35)',
+              letterSpacing: '0.15em',
+              writingMode: 'vertical-rl',
+              transform: 'rotate(180deg)',
+            }}
+          >
+            Scroll
+          </span>
           <MotionDiv
             animate={{ y: [0, 8, 0] }}
             transition={{ repeat: Infinity, duration: 1.6, ease: 'easeInOut' }}
-            style={{ color: 'rgba(250,249,246,0.55)' }}
+            style={{ color: 'rgba(250,249,246,0.35)' }}
           >
-            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
               <path d="M6 9l6 6 6-6" />
             </svg>
           </MotionDiv>
