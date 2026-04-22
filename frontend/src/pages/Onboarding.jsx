@@ -31,12 +31,28 @@ const COOK_TIME_OPTIONS = [
   { value: 90, label: '90+ min' },
 ]
 
+const ACTIVITY_OPTIONS = [
+  { value: 'sedentary', label: 'Sedentary', description: 'Desk job, little exercise' },
+  { value: 'lightly_active', label: 'Lightly active', description: 'Light exercise 1–3 days/week' },
+  { value: 'moderately_active', label: 'Moderately active', description: 'Moderate exercise 3–5 days/week' },
+  { value: 'very_active', label: 'Very active', description: 'Hard exercise 6–7 days/week' },
+  { value: 'extra_active', label: 'Extra active', description: 'Physical job or twice daily training' },
+]
+
+const GOAL_OPTIONS = [
+  { value: 'cut', emoji: '🔥', label: 'Lose fat', subtitle: 'Cut — calorie deficit' },
+  { value: 'bulk', emoji: '💪', label: 'Build muscle', subtitle: 'Bulk — calorie surplus' },
+  { value: 'maintain', emoji: '⚖️', label: 'Stay balanced', subtitle: 'Maintain — at maintenance' },
+  { value: 'performance', emoji: '🏃', label: 'Optimize performance', subtitle: 'High-carb, performance focus' },
+]
+
 const STEPS = [
   'Household',
   'Diet',
   'Allergies',
   'Budget',
   'Cook Time',
+  'About You',
   'Email',
   'API Key',
 ]
@@ -112,6 +128,18 @@ export default function Onboarding() {
     allergies: [],
     budget: '',
     cook_time_minutes: 30,
+    // About You
+    age: '',
+    sex: '',
+    height_unit: 'imperial',
+    height_ft: '',
+    height_in: '',
+    height_cm_input: '',
+    weight: '',
+    weight_unit: 'lbs',
+    activity_level: '',
+    fitness_goal: '',
+    // Account
     email: '',
     openai_api_key: '',
   })
@@ -121,13 +149,56 @@ export default function Onboarding() {
   const canAdvance = () => {
     if (step === 0) return form.household_size >= 1
     if (step === 3) return form.budget !== '' && Number(form.budget) > 0
-    if (step === 5) return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())
-    if (step === 6) return form.openai_api_key.trim().length > 0
+    if (step === 5) return true // About You — all optional
+    if (step === 6) return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())
+    if (step === 7) return form.openai_api_key.trim().length > 0
     return true
   }
 
   const handleNext = () => setStep((s) => s + 1)
   const handleBack = () => setStep((s) => s - 1)
+
+  const buildBioPayload = () => {
+    const bio = {}
+
+    if (form.age !== '' && Number(form.age) >= 16 && Number(form.age) <= 99) {
+      bio.age = Number(form.age)
+    }
+    if (form.sex) {
+      bio.sex = form.sex
+    }
+
+    // Height conversion
+    if (form.height_unit === 'imperial') {
+      const ft = parseInt(form.height_ft, 10)
+      const inches = parseInt(form.height_in, 10) || 0
+      if (!isNaN(ft) && ft > 0) {
+        bio.height_cm = Math.round((ft * 12 + inches) * 2.54)
+      }
+    } else {
+      const cm = parseInt(form.height_cm_input, 10)
+      if (!isNaN(cm) && cm >= 50 && cm <= 300) {
+        bio.height_cm = cm
+      }
+    }
+
+    // Weight conversion
+    if (form.weight !== '') {
+      const w = parseFloat(form.weight)
+      if (!isNaN(w) && w > 0) {
+        bio.weight_kg = form.weight_unit === 'lbs' ? parseFloat((w / 2.20462).toFixed(2)) : w
+      }
+    }
+
+    if (form.activity_level) {
+      bio.activity_level = form.activity_level
+    }
+    if (form.fitness_goal) {
+      bio.fitness_goal = form.fitness_goal
+    }
+
+    return bio
+  }
 
   const handleSubmit = async () => {
     setSubmitting(true)
@@ -144,6 +215,7 @@ export default function Onboarding() {
           budget: Number(form.budget),
           cook_time_minutes: form.cook_time_minutes,
           openai_api_key: form.openai_api_key.trim() || null,
+          ...buildBioPayload(),
         }),
       })
       if (!res.ok) {
@@ -282,6 +354,197 @@ export default function Onboarding() {
 
           {step === 5 && (
             <div>
+              <h2 className="text-xl font-bold text-gray-900 mb-1">About you</h2>
+              <p className="text-gray-500 text-sm mb-6">
+                We use this to calculate your calorie targets — skip to use defaults.
+              </p>
+
+              {/* Age */}
+              <div className="mb-5">
+                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Age</label>
+                <input
+                  type="number"
+                  min="16"
+                  max="99"
+                  placeholder="e.g. 30"
+                  value={form.age}
+                  onChange={(e) => set('age', e.target.value)}
+                  className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-400 focus:border-transparent transition-shadow"
+                />
+              </div>
+
+              {/* Biological sex */}
+              <div className="mb-5">
+                <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+                  Biological sex{' '}
+                  <span className="font-normal text-gray-400">(used for calorie calculation only)</span>
+                </label>
+                <div className="grid grid-cols-3 gap-3">
+                  {[
+                    { value: 'male', label: 'Male' },
+                    { value: 'female', label: 'Female' },
+                    { value: 'other', label: 'Other' },
+                  ].map(({ value, label }) => (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => set('sex', form.sex === value ? '' : value)}
+                      className={`py-2.5 rounded-xl border text-sm font-semibold transition-colors ${
+                        form.sex === value
+                          ? 'border-green-500 bg-green-50 text-green-700'
+                          : 'border-gray-200 text-gray-600 hover:border-gray-300'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Height */}
+              <div className="mb-5">
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-sm font-semibold text-gray-700">Height</label>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      set('height_unit', form.height_unit === 'imperial' ? 'metric' : 'imperial')
+                    }
+                    className="text-xs text-green-600 hover:text-green-700 font-medium underline underline-offset-2"
+                  >
+                    {form.height_unit === 'imperial' ? 'Switch to cm' : 'Switch to ft/in'}
+                  </button>
+                </div>
+                {form.height_unit === 'imperial' ? (
+                  <div className="flex gap-3">
+                    <div className="relative flex-1">
+                      <input
+                        type="number"
+                        min="1"
+                        max="8"
+                        placeholder="5"
+                        value={form.height_ft}
+                        onChange={(e) => set('height_ft', e.target.value)}
+                        className="w-full border border-gray-200 rounded-xl px-4 py-3 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-green-400 focus:border-transparent transition-shadow"
+                      />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">ft</span>
+                    </div>
+                    <div className="relative flex-1">
+                      <input
+                        type="number"
+                        min="0"
+                        max="11"
+                        placeholder="10"
+                        value={form.height_in}
+                        onChange={(e) => set('height_in', e.target.value)}
+                        className="w-full border border-gray-200 rounded-xl px-4 py-3 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-green-400 focus:border-transparent transition-shadow"
+                      />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">in</span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="relative">
+                    <input
+                      type="number"
+                      min="50"
+                      max="300"
+                      placeholder="178"
+                      value={form.height_cm_input}
+                      onChange={(e) => set('height_cm_input', e.target.value)}
+                      className="w-full border border-gray-200 rounded-xl px-4 py-3 pr-12 text-sm focus:outline-none focus:ring-2 focus:ring-green-400 focus:border-transparent transition-shadow"
+                    />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">cm</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Weight */}
+              <div className="mb-5">
+                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Weight</label>
+                <div className="flex gap-3">
+                  <div className="relative flex-1">
+                    <input
+                      type="number"
+                      min="1"
+                      step="0.1"
+                      placeholder={form.weight_unit === 'lbs' ? '160' : '73'}
+                      value={form.weight}
+                      onChange={(e) => set('weight', e.target.value)}
+                      className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-400 focus:border-transparent transition-shadow"
+                    />
+                  </div>
+                  <div className="flex rounded-xl border border-gray-200 overflow-hidden text-sm font-semibold">
+                    {['lbs', 'kg'].map((unit) => (
+                      <button
+                        key={unit}
+                        type="button"
+                        onClick={() => set('weight_unit', unit)}
+                        className={`px-4 py-2 transition-colors ${
+                          form.weight_unit === unit
+                            ? 'bg-green-500 text-white'
+                            : 'text-gray-600 hover:bg-gray-50'
+                        }`}
+                      >
+                        {unit}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Activity level */}
+              <div className="mb-5">
+                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Activity level</label>
+                <div className="space-y-2">
+                  {ACTIVITY_OPTIONS.map(({ value, label, description }) => (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => set('activity_level', form.activity_level === value ? '' : value)}
+                      className={`w-full text-left px-4 py-3 rounded-xl border transition-colors ${
+                        form.activity_level === value
+                          ? 'border-green-500 bg-green-50'
+                          : 'border-gray-200 hover:border-gray-300'
+                      }`}
+                    >
+                      <span className={`block text-sm font-semibold ${form.activity_level === value ? 'text-green-700' : 'text-gray-800'}`}>
+                        {label}
+                      </span>
+                      <span className="block text-xs text-gray-500">{description}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Fitness goal */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Fitness goal</label>
+                <div className="grid grid-cols-2 gap-3">
+                  {GOAL_OPTIONS.map(({ value, emoji, label, subtitle }) => (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => set('fitness_goal', form.fitness_goal === value ? '' : value)}
+                      className={`flex flex-col items-center text-center p-4 rounded-xl border transition-colors ${
+                        form.fitness_goal === value
+                          ? 'border-green-500 bg-green-50'
+                          : 'border-gray-200 hover:border-gray-300'
+                      }`}
+                    >
+                      <span className="text-2xl mb-1">{emoji}</span>
+                      <span className={`text-sm font-bold ${form.fitness_goal === value ? 'text-green-700' : 'text-gray-800'}`}>
+                        {label}
+                      </span>
+                      <span className="text-xs text-gray-500 mt-0.5">{subtitle}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {step === 6 && (
+            <div>
               <h2 className="text-xl font-bold text-gray-900 mb-1">Your email</h2>
               <p className="text-gray-500 text-sm mb-4">
                 Used to log back in. We'll never send you spam.
@@ -297,7 +560,7 @@ export default function Onboarding() {
             </div>
           )}
 
-          {step === 6 && (
+          {step === 7 && (
             <div>
               <h2 className="text-xl font-bold text-gray-900 mb-1">OpenAI API key</h2>
               <p className="text-gray-500 text-sm mb-4">
