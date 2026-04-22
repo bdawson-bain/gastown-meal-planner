@@ -27,5 +27,12 @@ class UserPreferences(Base):
     budget: Mapped[Optional[Decimal]] = mapped_column(Numeric(10, 2), nullable=True)
     cook_time_minutes: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     openai_api_key: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    height_cm: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    weight_kg: Mapped[Optional[Decimal]] = mapped_column(Numeric(5, 2), nullable=True)
+    age: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    sex: Mapped[Optional[str]] = mapped_column(String(10), nullable=True)
+    activity_level: Mapped[Optional[str]] = mapped_column(String(30), nullable=True)
+    fitness_goal: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
+    tdee_override: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
 
     user: Mapped["User"] = relationship(back_populates="preferences")
