@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
+import { getMealImage } from '../utils/mealImage'
 
 const MotionDiv = motion.div
 const MotionSection = motion.section
@@ -9,36 +10,6 @@ const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:8000'
 const USER_KEY = 'user_id'
 const DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
 const SLOTS = ['breakfast', 'lunch', 'dinner']
-
-// Curated Unsplash food photo IDs per meal slot
-const MEAL_PHOTOS = {
-  breakfast: [
-    'photo-1484723091739-30a097e8f929', // pancakes
-    'photo-1533089860892-a7c6f0a88666', // avocado toast
-    'photo-1528735602780-2552fd46c7af', // granola bowl
-    'photo-1565299624946-b28f40a0ae38', // fried eggs
-  ],
-  lunch: [
-    'photo-1512621776951-a57141f2eefd', // colorful salad
-    'photo-1546069901-ba9599a7e63c',    // grain bowl
-    'photo-1555939594-58d7cb561ad1',    // wrap sandwich
-    'photo-1504674900247-0877df9cc836', // food spread
-  ],
-  dinner: [
-    'photo-1467003909585-2f8a72700288', // salmon fillet
-    'photo-1414235077428-338989a2e8c0', // restaurant pasta
-    'photo-1476224203421-9ac39bcb3327', // cooked meat
-    'photo-1485963631004-f2f00b1d6606', // dinner plate
-  ],
-}
-
-function getMealImage(name, slot, w = 560) {
-  const pool = MEAL_PHOTOS[slot] ?? MEAL_PHOTOS.dinner
-  const hash = name ? [...name].reduce((a, c) => a + c.charCodeAt(0), 0) : 0
-  const id = pool[hash % pool.length]
-  const h = Math.round(w * 0.75)
-  return `https://images.unsplash.com/${id}?w=${w}&h=${h}&fit=crop&q=80`
-}
 
 function todayKey(weekStart) {
   if (weekStart) {
@@ -206,7 +177,7 @@ function MealPhotoCard({ meal, slot }) {
     >
       <div style={{ height: 120, overflow: 'hidden' }}>
         <img
-          src={getMealImage(meal.name, slot)}
+          src={getMealImage(slot, meal.name)}
           alt={meal.name}
           loading="lazy"
           className="w-full h-full object-cover"
@@ -242,7 +213,7 @@ function CircleThumb({ src, alt, overlap }) {
   return (
     <div
       className="w-10 h-10 rounded-full overflow-hidden border-2 border-cream-dark ring-1 ring-white flex-shrink-0"
-      style={overlap ? { marginLeft: '-10px' } : {}}
+      style={overlap ? { marginLeft: '-12px' } : {}}
     >
       <img src={src} alt={alt} loading="lazy" className="w-full h-full object-cover" />
     </div>
@@ -525,7 +496,7 @@ export default function Dashboard() {
                     {collageMeals.map((meal, i) => (
                       <CircleThumb
                         key={i}
-                        src={getMealImage(meal.name, meal.meal_type, 80)}
+                        src={getMealImage(meal.meal_type, meal.name, 80)}
                         alt={meal.name}
                         overlap={i > 0}
                       />
