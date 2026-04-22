@@ -26,8 +26,8 @@ export default function Layout() {
     <div className="min-h-screen flex flex-col" style={{ backgroundColor: '#fafaf9' }}>
       <header className="sticky top-0 z-50 border-b border-gray-100" style={{ backgroundColor: 'rgba(250,250,249,0.92)', backdropFilter: 'blur(8px)' }}>
         <nav className="max-w-6xl mx-auto flex items-center justify-between px-6 py-4">
-          <NavLink to="/" className="text-xl font-extrabold tracking-tight text-gray-900">
-            GasTown<span className="text-green-500">.</span>
+          <NavLink to="/" className="tracking-tight text-gray-900 font-serif font-normal" style={{ fontSize: '22px' }}>
+            Forma
           </NavLink>
           <ul className="flex gap-6 list-none m-0 p-0 items-center">
             {navLinks.map(({ to, label }) => (
@@ -61,6 +61,9 @@ export default function Layout() {
       <main className="flex-1 w-full">
         <Outlet />
       </main>
+      <footer className="border-t border-gray-100 py-6">
+        <p className="text-center text-xs text-gray-400">© 2024 Forma</p>
+      </footer>
     </div>
   )
 }
