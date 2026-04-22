@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.grocery_list import GroceryList
 from app.models.meal import Meal
+from app.models.meal_feedback import MealFeedback
 from app.models.meal_plan import MealPlan
 from app.models.user import User
 from services.meal_generation import generate_weekly_meals
@@ -188,6 +189,18 @@ def create_meal_plan(
 
     week_start = body.week_start or _next_monday(date.today())
 
+    four_weeks_ago = datetime.utcnow() - timedelta(weeks=4)
+    recent_feedback = (
+        db.query(MealFeedback)
+        .filter(
+            MealFeedback.user_id == body.user_id,
+            MealFeedback.created_at >= four_weeks_ago,
+        )
+        .all()
+    )
+    liked_meals = [f.meal_name for f in recent_feedback if f.rating == "liked"] or None
+    disliked_meals = [f.meal_name for f in recent_feedback if f.rating == "disliked"] or None
+
     try:
         meal_dicts = generate_weekly_meals(
             api_key=prefs.openai_api_key,
@@ -196,6 +209,8 @@ def create_meal_plan(
             allergies=list(prefs.allergies or []),
             budget=float(prefs.budget) if prefs.budget else None,
             cook_time_minutes=prefs.cook_time_minutes,
+            liked_meals=liked_meals,
+            disliked_meals=disliked_meals,
         )
     except ValueError as exc:
         raise HTTPException(status_code=502, detail=str(exc))

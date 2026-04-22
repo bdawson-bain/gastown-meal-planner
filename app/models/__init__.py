@@ -4,5 +4,6 @@ from app.models.user_preferences import UserPreferences
 from app.models.meal_plan import MealPlan
 from app.models.meal import Meal
 from app.models.grocery_list import GroceryList
+from app.models.meal_feedback import MealFeedback
 
-__all__ = ["Base", "User", "UserPreferences", "MealPlan", "Meal", "GroceryList"]
+__all__ = ["Base", "User", "UserPreferences", "MealPlan", "Meal", "GroceryList", "MealFeedback"]

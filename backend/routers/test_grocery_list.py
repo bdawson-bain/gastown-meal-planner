@@ -16,7 +16,8 @@ sys.modules.setdefault("openai", MagicMock())
 # Stub app.* and services.* modules
 for mod in [
     "app", "app.database", "app.models", "app.models.grocery_list",
-    "app.models.meal", "app.models.meal_plan", "app.models.user",
+    "app.models.meal", "app.models.meal_feedback", "app.models.meal_plan",
+    "app.models.user",
     "services", "services.meal_generation",
 ]:
     sys.modules.setdefault(mod, MagicMock())
