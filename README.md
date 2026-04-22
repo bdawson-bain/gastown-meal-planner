@@ -1,4 +1,4 @@
-# Gas Town Meals
+# Forma
 
 A macro-aware meal planner for fitness-focused singles.
 
