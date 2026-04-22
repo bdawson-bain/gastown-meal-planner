@@ -245,3 +245,36 @@ def generate_week_meal_plan(
 
     raw_text = response.choices[0].message.content or ""
     return parse_meal_plan_response(raw_text)
+
+
+# ---------------------------------------------------------------------------
+# Compatibility adapter used by routers/meal_plans.py
+# ---------------------------------------------------------------------------
+
+def generate_weekly_meals(
+    api_key: str,
+    household_size: int = 1,
+    dietary_prefs: list[str] | None = None,
+    allergies: list[str] | None = None,
+    budget: float | None = None,
+    cook_time_minutes: int | None = None,
+) -> list[dict[str, Any]]:
+    """Flat-kwargs wrapper around generate_week_meal_plan; returns dicts."""
+    prefs = MealPreferences(
+        household_size=household_size,
+        dietary_prefs=dietary_prefs or [],
+        allergies=allergies or [],
+        budget=Decimal(str(budget)) if budget is not None else None,
+        cook_time_minutes=cook_time_minutes,
+    )
+    rows = generate_week_meal_plan(prefs, api_key=api_key)
+    return [
+        {
+            "day": r.day,
+            "meal_type": r.meal_type,
+            "name": r.name,
+            "description": r.description,
+            "ingredients": r.ingredients_json,
+        }
+        for r in rows
+    ]
