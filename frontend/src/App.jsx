@@ -8,6 +8,7 @@ import Onboarding from './pages/Onboarding'
 import Plan from './pages/Plan'
 import Plans from './pages/Plans'
 import GroceryList from './pages/GroceryList'
+import Profile from './pages/Profile'
 
 export default function App() {
   return (
@@ -45,6 +46,14 @@ export default function App() {
           element={
             <ProtectedRoute>
               <GroceryList />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="profile"
+          element={
+            <ProtectedRoute>
+              <Profile />
             </ProtectedRoute>
           }
         />

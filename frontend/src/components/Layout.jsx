@@ -46,6 +46,12 @@ export default function Layout() {
     return () => window.removeEventListener('scroll', onScroll)
   }, [])
 
+  // Re-check scroll position on route changes so transparent state is correct
+  // when navigating back to the landing page while already at scroll 0
+  useEffect(() => {
+    setScrolled(window.scrollY > 60)
+  }, [location.pathname])
+
   // Close dropdown on outside click
   useEffect(() => {
     if (!dropdownOpen) return
