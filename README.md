@@ -2,19 +2,37 @@
 
 A macro-aware meal planner for fitness-focused singles.
 
-## Development
+## Setup
 
 ### Prerequisites
 
 - [Docker](https://docs.docker.com/get-docker/) and Docker Compose v2
+- Python 3.12+ (only needed to generate `ENCRYPTION_KEY` — see below)
 
-### Start the dev stack
+### Quick start
 
 ```bash
+# 1. Clone the repo
+git clone <repo-url> gastownmeals
+cd gastownmeals
+
+# 2. Create your .env file
+cp .env.example .env
+
+# 3. Generate an encryption key and paste it into .env
+python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+# → Edit .env and set ENCRYPTION_KEY=<output from above>
+
+# 4. Start all services
 docker compose up
+
+# 5. Open the app
+open http://localhost:5173
 ```
 
-This starts three services and hot-reloads on file changes:
+Database migrations run automatically when the backend starts.
+
+### Services
 
 | Service | URL | Description |
 |---------|-----|-------------|
@@ -25,14 +43,15 @@ This starts three services and hot-reloads on file changes:
 
 ### Environment variables
 
-Copy `.env.example` to `.env` before starting:
+All variables are documented in `.env.example`:
 
-```bash
-cp .env.example .env
-docker compose up
-```
-
-Values in `.env.example` work out of the box for local development.
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `POSTGRES_DB` | `gastownmeals` | Postgres database name |
+| `POSTGRES_USER` | `gastownmeals` | Postgres username |
+| `POSTGRES_PASSWORD` | `gastownmeals` | Postgres password |
+| `VITE_API_URL` | `http://localhost:8000` | Backend URL used by the frontend |
+| `ENCRYPTION_KEY` | *(required)* | Fernet key for encrypting stored API keys |
 
 ### Service details
 
@@ -41,7 +60,8 @@ via `VITE_API_URL`. The dev server binds to `0.0.0.0` inside the container so it
 reachable at http://localhost:5173.
 
 **backend** (`./backend`) — FastAPI + SQLAlchemy + Alembic. Runs with `--reload` so
-changes to Python files restart the server automatically. The database URL is injected
+changes to Python files restart the server automatically. On startup, Alembic
+automatically migrates the database to the latest schema. The database URL is injected
 via `DATABASE_URL`.
 
 **db** — Postgres 16. Data persists in a named Docker volume (`postgres_data`). The

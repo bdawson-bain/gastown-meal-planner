@@ -1,9 +1,19 @@
+import subprocess
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from routers import auth, feedback, health, keys, meal_plans, users
 
-app = FastAPI(title="Gas Town Meal Planner API")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    subprocess.run(["alembic", "upgrade", "head"], check=True)
+    yield
+
+
+app = FastAPI(title="Gas Town Meal Planner API", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,

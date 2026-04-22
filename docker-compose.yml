@@ -22,10 +22,13 @@ services:
     volumes:
       - ./backend:/app
       - ./app:/app/app
+      - ./alembic:/app/alembic
+      - ./alembic.ini:/app/alembic.ini
     ports:
       - "8000:8000"
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-gastownmeals}:${POSTGRES_PASSWORD:-gastownmeals}@db:5432/${POSTGRES_DB:-gastownmeals}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY}
     depends_on:
       db:
         condition: service_healthy
