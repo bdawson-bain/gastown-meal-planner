@@ -14,6 +14,7 @@ router = APIRouter(prefix="/api")
 
 
 class CreateUserRequest(BaseModel):
+    email: Optional[str] = None
     household_size: int = Field(..., ge=1, le=20)
     dietary_prefs: List[str] = Field(default_factory=list)
     allergies: List[str] = Field(default_factory=list)
@@ -24,6 +25,7 @@ class CreateUserRequest(BaseModel):
 
 class CreateUserResponse(BaseModel):
     id: str
+    email: Optional[str] = None
 
 
 class PreferencesOut(BaseModel):
@@ -61,6 +63,7 @@ def create_user(body: CreateUserRequest, db: Session = Depends(get_db)) -> Creat
 
     prefs = UserPreferences(
         user_id=user.id,
+        email=body.email,
         household_size=body.household_size,
         dietary_prefs=body.dietary_prefs,
         allergies=body.allergies,
@@ -71,7 +74,7 @@ def create_user(body: CreateUserRequest, db: Session = Depends(get_db)) -> Creat
     db.add(prefs)
     db.commit()
     db.refresh(user)
-    return CreateUserResponse(id=str(user.id))
+    return CreateUserResponse(id=str(user.id), email=prefs.email)
 
 
 @router.get("/users/{user_id}", response_model=UserOut)

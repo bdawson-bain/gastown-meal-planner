@@ -20,6 +20,7 @@ class UserPreferences(Base):
         ForeignKey("users.id", ondelete="CASCADE"),
         primary_key=True,
     )
+    email: Mapped[Optional[str]] = mapped_column(String, nullable=True, index=True)
     household_size: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     dietary_prefs: Mapped[Optional[Any]] = mapped_column(JSONB, nullable=True)
     allergies: Mapped[Optional[Any]] = mapped_column(JSONB, nullable=True)

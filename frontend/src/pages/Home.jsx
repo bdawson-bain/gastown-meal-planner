@@ -1,6 +1,15 @@
-import { Link } from 'react-router-dom'
+import { useEffect } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 
 export default function Home() {
+  const navigate = useNavigate()
+
+  useEffect(() => {
+    if (localStorage.getItem('user_id')) {
+      navigate('/plan', { replace: true })
+    }
+  }, [navigate])
+
   return (
     <div className="min-h-[82vh] flex flex-col items-center justify-center px-6 py-20 text-center">
       <div className="inline-flex items-center gap-2 bg-green-50 text-green-700 text-xs font-semibold px-4 py-1.5 rounded-full mb-8 tracking-widest uppercase">
@@ -22,6 +31,12 @@ export default function Home() {
         Build my plan →
       </Link>
       <p className="mt-5 text-sm text-gray-400">Takes about 2 minutes. No credit card required.</p>
+      <p className="mt-3 text-sm text-gray-400">
+        Already have an account?{' '}
+        <Link to="/login" className="text-green-600 font-semibold hover:underline">
+          Sign in
+        </Link>
+      </p>
     </div>
   )
 }
