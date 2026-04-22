@@ -9,6 +9,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.models.base import Base
 
 if TYPE_CHECKING:
+    from app.models.meal_feedback import MealFeedback
     from app.models.meal_plan import MealPlan
     from app.models.user_preferences import UserPreferences
 
@@ -27,5 +28,8 @@ class User(Base):
         back_populates="user", uselist=False, cascade="all, delete-orphan"
     )
     meal_plans: Mapped[List["MealPlan"]] = relationship(
+        back_populates="user", cascade="all, delete-orphan"
+    )
+    meal_feedback: Mapped[List["MealFeedback"]] = relationship(
         back_populates="user", cascade="all, delete-orphan"
     )

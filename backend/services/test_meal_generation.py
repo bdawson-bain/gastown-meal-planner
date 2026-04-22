@@ -23,6 +23,7 @@ sys.modules["openai"] = _mock_openai
 
 from meal_generation import (  # noqa: E402
     ApiKeyError,
+    FeedbackHints,
     GeneratedMealRow,
     GenerationTimeoutError,
     MalformedResponseError,
@@ -327,6 +328,93 @@ class TestGenerateWeekMealPlan(unittest.TestCase):
         generate_week_meal_plan(_prefs(), api_key="sk-test")
         call_kwargs = client.chat.completions.create.call_args[1]
         self.assertLessEqual(call_kwargs["temperature"], 0.5)
+
+
+# ---------------------------------------------------------------------------
+# build_system_prompt — feedback hints
+# ---------------------------------------------------------------------------
+
+class TestBuildSystemPromptFeedback(unittest.TestCase):
+    def test_no_feedback_omits_feedback_section(self):
+        prompt = build_system_prompt(_prefs())
+        self.assertNotIn("liked", prompt)
+        self.assertNotIn("disliked", prompt)
+        self.assertNotIn("More like these", prompt)
+
+    def test_empty_feedback_omits_feedback_section(self):
+        prompt = build_system_prompt(_prefs(), FeedbackHints())
+        self.assertNotIn("More like these", prompt)
+        self.assertNotIn("Avoid these", prompt)
+
+    def test_liked_meals_appear_in_prompt(self):
+        fb = FeedbackHints(liked=["Chicken Stir Fry", "Oat Bowl"])
+        prompt = build_system_prompt(_prefs(), fb)
+        self.assertIn("Chicken Stir Fry", prompt)
+        self.assertIn("Oat Bowl", prompt)
+        self.assertIn("More like these", prompt)
+
+    def test_disliked_meals_appear_in_prompt(self):
+        fb = FeedbackHints(disliked=["Kale Salad"])
+        prompt = build_system_prompt(_prefs(), fb)
+        self.assertIn("Kale Salad", prompt)
+        self.assertIn("Avoid these", prompt)
+
+    def test_liked_and_disliked_both_included(self):
+        fb = FeedbackHints(liked=["Pasta"], disliked=["Tofu Scramble"])
+        prompt = build_system_prompt(_prefs(), fb)
+        self.assertIn("Pasta", prompt)
+        self.assertIn("Tofu Scramble", prompt)
+
+    def test_liked_capped_at_10(self):
+        names = [f"Meal {i}" for i in range(15)]
+        fb = FeedbackHints(liked=names)
+        prompt = build_system_prompt(_prefs(), fb)
+        self.assertIn("Meal 9", prompt)
+        self.assertNotIn("Meal 10", prompt)
+
+    def test_disliked_capped_at_10(self):
+        names = [f"Bad Meal {i}" for i in range(15)]
+        fb = FeedbackHints(disliked=names)
+        prompt = build_system_prompt(_prefs(), fb)
+        self.assertIn("Bad Meal 9", prompt)
+        self.assertNotIn("Bad Meal 10", prompt)
+
+    def test_liked_adds_rule(self):
+        fb = FeedbackHints(liked=["Salmon Bowl"])
+        prompt = build_system_prompt(_prefs(), fb)
+        self.assertIn("similar in style to the liked meals", prompt)
+
+    def test_disliked_adds_rule(self):
+        fb = FeedbackHints(disliked=["Brussels Sprouts"])
+        prompt = build_system_prompt(_prefs(), fb)
+        self.assertIn("similar to the disliked meals", prompt)
+
+
+# ---------------------------------------------------------------------------
+# generate_week_meal_plan — feedback threading
+# ---------------------------------------------------------------------------
+
+class TestGenerateWeekMealPlanFeedback(unittest.TestCase):
+    def _get_system_prompt(self, client: MagicMock) -> str:
+        messages = client.chat.completions.create.call_args[1]["messages"]
+        return next(m["content"] for m in messages if m["role"] == "system")
+
+    def test_liked_meals_reach_system_prompt(self):
+        client = _setup_client(_full_plan())
+        fb = FeedbackHints(liked=["Chicken Curry"])
+        generate_week_meal_plan(_prefs(), api_key="sk-test", feedback=fb)
+        self.assertIn("Chicken Curry", self._get_system_prompt(client))
+
+    def test_disliked_meals_reach_system_prompt(self):
+        client = _setup_client(_full_plan())
+        fb = FeedbackHints(disliked=["Plain Rice"])
+        generate_week_meal_plan(_prefs(), api_key="sk-test", feedback=fb)
+        self.assertIn("Plain Rice", self._get_system_prompt(client))
+
+    def test_no_feedback_still_works(self):
+        _setup_client(_full_plan())
+        rows = generate_week_meal_plan(_prefs(), api_key="sk-test", feedback=None)
+        self.assertEqual(len(rows), 21)
 
 
 if __name__ == "__main__":
