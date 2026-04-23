@@ -102,21 +102,6 @@ function todayTotals(meals, day) {
   )
 }
 
-function planAvgCal(meals) {
-  if (!meals?.length) return null
-  const withCal = meals.filter((m) => m.calories != null)
-  if (!withCal.length) return null
-  return Math.round(withCal.reduce((a, m) => a + m.calories, 0) / 7)
-}
-
-function goalLabel(fitnessGoal) {
-  switch (fitnessGoal) {
-    case 'cut': return 'Cut (-300 cal)'
-    case 'bulk': return 'Bulk (+300 cal)'
-    case 'performance': return 'Performance (+200 cal)'
-    default: return 'Maintain'
-  }
-}
 
 // ── Sub-components ──────────────────────────────────────────────────────────
 
@@ -356,7 +341,6 @@ export default function Dashboard() {
   if (!userId) return null
 
   const tdee = user?.preferences?.tdee_estimate
-  const fitnessGoal = user?.preferences?.fitness_goal
   const targets = macroTargets(tdee)
   const activePlan = plans.find((p) => p.is_active) ?? null
   const today = todayKey(activePlanFull?.week_start)
@@ -364,8 +348,6 @@ export default function Dashboard() {
     (slot) => activePlanFull?.meals.find((m) => m.day === today && m.meal_type === slot) ?? null,
   )
   const totals = activePlanFull ? todayTotals(activePlanFull.meals, today) : null
-  const avgCal = planAvgCal(activePlanFull?.meals)
-  const mealCount = activePlanFull?.meals?.length ?? 0
   const historyPlans = plans.slice(0, 4)
   const collageMeals = activePlanFull?.meals?.slice(0, 3) ?? []
 
@@ -593,21 +575,40 @@ export default function Dashboard() {
           </section>
         )}
 
-        {/* ── 6. Quick stats footer ──────────────────────────────────── */}
-        {activePlan && !loading && (
-          <div className="border-t border-cream-dark pt-6">
-            <div className="grid grid-cols-3 gap-4 text-center">
-              <p className="font-sans text-[13px] text-ink-subtle">
-                {mealCount} meals planned
-              </p>
-              <p className="font-sans text-[13px] text-ink-subtle">
-                {avgCal != null ? `avg ${avgCal.toLocaleString()} cal/day` : '—'}
-              </p>
-              <p className="font-sans text-[13px] text-ink-subtle">
-                Goal: {goalLabel(fitnessGoal)}
-              </p>
+        {/* ── 6. Quick actions row ──────────────────────────────────── */}
+        {!loading && (
+          <MotionDiv
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.8 }}
+            className="border-t border-cream-dark pt-8"
+          >
+            <p className="font-sans text-[12px] uppercase tracking-[0.14em] text-ink-subtle mb-4">
+              Quick actions
+            </p>
+            <div className="flex flex-wrap gap-3">
+              <button
+                type="button"
+                onClick={handleGenerate}
+                disabled={generating}
+                className="inline-flex items-center gap-2 bg-forest text-cream font-sans text-sm font-medium px-6 py-3 rounded-full hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {generating ? 'Generating…' : 'Generate new plan'}
+              </button>
+              <Link
+                to="/grocery-list"
+                className="inline-flex items-center gap-2 border border-forest text-forest font-sans text-sm font-medium px-6 py-3 rounded-full hover:bg-forest hover:text-cream transition-colors"
+              >
+                View grocery list
+              </Link>
+              <Link
+                to="/onboarding"
+                className="inline-flex items-center gap-2 border border-cream-dark text-ink font-sans text-sm font-medium px-6 py-3 rounded-full hover:bg-cream-dark transition-colors"
+              >
+                Update goals
+              </Link>
             </div>
-          </div>
+          </MotionDiv>
         )}
 
       </div>
